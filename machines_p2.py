@@ -13,16 +13,18 @@ class P2():
     def select_piece(self):
         # Make your own algorithm here
 
-        # time.sleep(0.5) # Check time consumption (Delete when you make your algorithm)
+        time.sleep(0.5) # Check time consumption (Delete when you make your algorithm)
 
         return random.choice(self.available_pieces)
 
-    def place_piece(self):
+    def place_piece(self, selected_piece):
+        # selected_piece: The selected piece that you have to place on the board (e.g. (1, 0, 1, 0)).
+        
         # Available locations to place the piece
         available_locs = [(row, col) for row, col in product(range(4), range(4)) if self.board[row][col]==0]
 
         # Make your own algorithm here
 
-        # time.sleep(1) # Check time consumption (Delete when you make your algorithm)
-
+        time.sleep(1) # Check time consumption (Delete when you make your algorithm)
+        
         return random.choice(available_locs)

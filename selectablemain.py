@@ -1,14 +1,13 @@
 import sys
 import pygame
 import numpy as np
-
-from machines_p1 import P1
-from machines_p2 import P2
 import time
 
+from machines_p1 import P1
+
+# Player mapping
 players = {
-    1: P1,
-    2: P2
+    1: P1,  # AI가 담당하는 Player
 }
 
 pygame.init()
@@ -63,9 +62,8 @@ def draw_pieces():
                 screen.blit(text_surface, (col * SQUARE_SIZE + 10, row * SQUARE_SIZE + 10))
 
 def draw_available_pieces():
-    global selected_piece  # Declare that we are using the global variable
+    global selected_piece
     font = pygame.font.Font(None, 30)
-    # Clear the area where available pieces are displayed
     pygame.draw.rect(screen, BLACK, pygame.Rect(0, WIDTH, WIDTH, HEIGHT - WIDTH))
     
     for idx, piece in enumerate(available_pieces):
@@ -94,7 +92,7 @@ def check_line(line):
     if 0 in line:
         return False  # Incomplete line
     characteristics = np.array([pieces[piece_idx - 1] for piece_idx in line])
-    for i in range(4):  # Check each characteristic (I/E, N/S, T/F, P/J)
+    for i in range(4):
         if len(set(characteristics[:, i])) == 1:  # All share the same characteristic
             return True
     return False
@@ -103,41 +101,25 @@ def check_2x2_subgrid_win():
     for r in range(BOARD_ROWS - 1):
         for c in range(BOARD_COLS - 1):
             subgrid = [board[r][c], board[r][c+1], board[r+1][c], board[r+1][c+1]]
-            if 0 not in subgrid:  # All cells must be filled
+            if 0 not in subgrid:
                 characteristics = [pieces[idx - 1] for idx in subgrid]
-                for i in range(4):  # Check each characteristic (I/E, N/S, T/F, P/J)
-                    if len(set(char[i] for char in characteristics)) == 1:  # All share the same characteristic
+                for i in range(4):
+                    if len(set(char[i] for char in characteristics)) == 1:
                         return True
     return False
 
 def check_win():
-    # Check rows, columns, and diagonals
     for col in range(BOARD_COLS):
         if check_line([board[row][col] for row in range(BOARD_ROWS)]):
             return True
-    
     for row in range(BOARD_ROWS):
         if check_line([board[row][col] for col in range(BOARD_COLS)]):
             return True
-        
     if check_line([board[i][i] for i in range(BOARD_ROWS)]) or check_line([board[i][BOARD_ROWS - i - 1] for i in range(BOARD_ROWS)]):
         return True
-
-    # Check 2x2 sub-grids
     if check_2x2_subgrid_win():
         return True
-    
     return False
-
-def restart_game():
-    global board, available_pieces, selected_piece, player
-    screen.fill(BLACK)
-    draw_lines()
-    board = np.zeros((BOARD_ROWS, BOARD_COLS), dtype=int)
-    available_pieces = pieces[:]
-    selected_piece = None  # Reset selected piece
-    draw_available_pieces()
-    display_message(f"Player {player}'s turn")
 
 def display_message(message, color=WHITE):
     font = pygame.font.Font(None, 50)
@@ -145,36 +127,11 @@ def display_message(message, color=WHITE):
     text_rect = text_surface.get_rect(center=(WIDTH // 2, HEIGHT - 50))
     screen.blit(text_surface, text_rect)
 
-def second2hhmmss(seconds):
-    if seconds >= 3600:
-        hh = seconds//3600
-        mm = (seconds-(hh*3600))//60
-        ss = seconds-(hh*3600)-(mm*60)
-        return f"{hh:.0f}h {mm:.0f}m {ss:.1f}s"
-    elif seconds >= 60:
-        mm = seconds//60
-        ss = seconds-(mm*60)
-        return f"{mm:.0f}m {ss:.1f}s"
-    else:
-        return f"{seconds:.1f}s"
-
-def display_time(total_time_consumption, color=GRAY):
-    font = pygame.font.Font(None, 30)
-    message = f"Player1: {second2hhmmss(total_time_consumption[1])} / Player2: {second2hhmmss(total_time_consumption[2])}"
-    text_surface = font.render(message, True, color)
-    text_rect = text_surface.get_rect(center=(WIDTH // 2, HEIGHT - 90))
-    screen.blit(text_surface, text_rect)
-
 # Game loop
-turn = 1 
+turn = 1  # 시작은 P1이 선택
 flag = "select_piece"
 game_over = False
 selected_piece = None
-
-total_time_consumption = {
-    1: 0,
-    2: 0
-}
 
 draw_lines()
 draw_available_pieces()
@@ -185,70 +142,91 @@ while True:
             pygame.quit()
             sys.exit()
 
-        if event.type == pygame.KEYDOWN and flag=="select_piece" and not game_over:
-            pressed = pygame.key.get_pressed()
-
-            if pressed[pygame.K_SPACE]:
-                begin = time.time()
-                player = players[3-turn](board=board, available_pieces=available_pieces)
-                selected_piece = player.select_piece()
-                finish = time.time()
-                total_time_consumption[3-turn]+=(finish-begin)
-                flag = "place_piece"
-
-        elif event.type == pygame.KEYDOWN and flag=="place_piece" and not game_over:
-            pressed = pygame.key.get_pressed()
-
-            if pressed[pygame.K_SPACE]:
-                begin = time.time()
-                player = players[turn](board=board, available_pieces=available_pieces)
-                (board_row, board_col) = player.place_piece(selected_piece)
-                finish = time.time()
-                total_time_consumption[turn]+=(finish-begin)
-
-                if available_square(board_row, board_col):
-                    # Place the selected piece on the board
-                    board[board_row][board_col] = pieces.index(selected_piece) + 1
-                    available_pieces.remove(selected_piece)
-                    selected_piece = None
-
-                    if check_win():
-                        game_over = True
-                        winner = turn
-                    elif is_board_full():
-                        game_over = True
-                        winner = None
-                    else:
-                        turn = 3 - turn
-                        flag = "select_piece"
+        if not game_over:
+            if flag == "select_piece":
+                if turn == 1:
+                    # P1 (AI)가 조각을 선택
+                    player = players[1](board=board, available_pieces=available_pieces)
+                    selected_piece = player.select_piece()
+                    flag = "place_piece"  # P2가 선택한 조각을 놓음
                 else:
-                    print(f"P{turn}; wrong selection")
+                    # P2 (사용자)가 조각을 선택
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        x, y = event.pos
+                        if y > WIDTH:
+                            col = x // SQUARE_SIZE
+                            row = (y - WIDTH) // PIECE_SIZE
+                            piece_idx = row * 4 + col
+                            if piece_idx < len(available_pieces):
+                                selected_piece = available_pieces[piece_idx]
+                                flag = "place_piece"
+
+            elif flag == "place_piece":
+                if turn == 1:
+                    # P2 (사용자)가 보드에 조각을 놓음
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        x, y = event.pos
+                        if y <= WIDTH:
+                            row = y // SQUARE_SIZE
+                            col = x // SQUARE_SIZE
+                            if available_square(row, col):
+                                board[row][col] = pieces.index(selected_piece) + 1
+                                available_pieces.remove(selected_piece)
+                                selected_piece = None
+                                if check_win():
+                                    game_over = True
+                                    winner = 2
+                                elif is_board_full():
+                                    game_over = True
+                                    winner = None
+                                else:
+                                    flag = "select_piece"
+                                    turn = 2  # 다음 턴에 P2가 선택
+
+                else:
+                    # P1 (AI)가 선택된 조각을 놓음
+                    player = players[1](board=board, available_pieces=available_pieces)
+                    (board_row, board_col) = player.place_piece(selected_piece)
+                    if available_square(board_row, board_col):
+                        board[board_row][board_col] = pieces.index(selected_piece) + 1
+                        available_pieces.remove(selected_piece)
+                        selected_piece = None
+                        if check_win():
+                            game_over = True
+                            winner = 1
+                        elif is_board_full():
+                            game_over = True
+                            winner = None
+                        else:
+                            flag = "select_piece"
+                            turn = 1  # 다음 턴에 P1이 선택
+
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_r:
-                restart_game()
+                # 게임 재시작
                 game_over = False
-                turn = 1 
+                turn = 1
                 flag = "select_piece"
-                total_time_consumption[1] = total_time_consumption[2] = 0
+                board = np.zeros((BOARD_ROWS, BOARD_COLS), dtype=int)
+                available_pieces = pieces[:]
+                selected_piece = None
+                draw_available_pieces()
+        
+        screen.fill(BLACK)
+        draw_lines()
+        draw_pieces()
+        draw_available_pieces()
 
-        if not game_over:
-            draw_pieces()
-            draw_available_pieces()
-            if selected_piece:
-                display_message(f"P{turn} placing pieces")
-                display_time(total_time_consumption)
-            else:
-                display_message(f"P{3-turn} selecting pieces")
-                display_time(total_time_consumption)
-        else:
-            draw_pieces()
-            draw_available_pieces()
+        if game_over:
             if winner:
                 display_message(f"Player {winner} Wins!", GREEN)
-                display_time(total_time_consumption)
-            elif is_board_full():
+            else:
                 display_message("Draw!", GRAY)
-                display_time(total_time_consumption)
+        elif flag == "select_piece":
+            display_message(f"P{3-turn} selecting piece")
+        else:
+            display_message(f"P{turn} placing piece")
 
         pygame.display.update()
+
