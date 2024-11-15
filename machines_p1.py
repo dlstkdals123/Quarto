@@ -17,9 +17,16 @@ class P1():
         self.available_pieces = available_pieces # Currently available pieces in a tuple type (e.g. (1, 0, 1, 0))
     
     def select_piece(self):
-        return 
+        tree = MCTS(self.board, PLAYER, "select_piece", True)
+        for _ in range(MCTS_ITERATIONS):
+            tree.do_rollout(self.board)
+        return tree.choose(self.board)
 
     def place_piece(self):
+        tree = MCTS(self.board, PLAYER, "place_piece", True)
+        for _ in range(MCTS_ITERATIONS):
+            tree.do_rollout(self.board)
+        return tree.choose(self.board)
         return 
     
 class MCTS:
@@ -122,10 +129,17 @@ class Node():
         self.debug = debug
 
     def find_children(self):
-        if self.current_state == "selected_piece":
-            result = self.board_state.available_pieces
+        # 플레이어 순서를 고려하여 자식 노드의 상태를 전환
+        if self.current_state == "select_piece":
+            # select_piece 이후는 상대가 piece를 배치할 차례
+            next_state = "place_piece"
+            next_player = -self.player
+            result = [Node(self.board_state, next_player, next_state) for _ in self.board_state.available_places]
         elif self.current_state == "place_piece":
-            result = self.board_state.available_places
+            # place_piece 이후는 상대가 piece를 선택할 차례
+            next_state = "select_piece"
+            next_player = -self.player
+            result = [Node(self.board_state, next_player, next_state) for _ in self.board_state.available_pieces]
         else:
             raise TypeError(f'current_state({self.current_state}) is invalid')
         
