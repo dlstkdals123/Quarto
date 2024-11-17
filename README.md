@@ -58,7 +58,7 @@
 ## 3. Commit
 Commit에 대해서는 다른 블로그를 참고바란다. \
 Commit이 끝나면 전에 만든 Branch로 Pull한다. \
-형식은 [Prefix] #Issue번호 - 한 일 이다. \
+형식은 [Prefix] #Issue번호 - 한 일 이다.
 
 예시)
 `[Fix] #5 - MCTS 오류 패치`
@@ -83,7 +83,7 @@ Branch에 Pull을 하였다면 Pull Request에 자동으로 뜬다. \
 뜨지 않을 경우 Pull Request을 클릭하여 해당하는 Branch를 클릭한다. \
 제목은 Branch와 동일하게 한다. \
 본문 내용은 다음과 같다. 필요없는 부분은 생략가능하다. \
-Issue번호에는 생성한 Issue의 번호를 기입한다. \
+Issue번호에는 생성한 Issue의 번호를 기입한다.
 ```
 ### Issue
 closed #Issue번호
