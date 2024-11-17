@@ -17,17 +17,35 @@ class P1():
         self.available_pieces = available_pieces # Currently available pieces in a tuple type (e.g. (1, 0, 1, 0))
     
     def select_piece(self):
-        tree = MCTS(self.board, PLAYER, "select_piece", True)
-        for _ in range(MCTS_ITERATIONS):
-            tree.do_rollout(self.board)
-        return tree.choose(self.board)
+        tree = MCTS(debug=False)
+        node = Node(self.board, PLAYER, "select_piece", debug=tree.debug)
+        for i in range(MCTS_ITERATIONS):
+            tree.do_rollout(node)
+            
+            # 진행 상태를 10%씩 출력 (i / MCTS_ITERATIONS * 100)
+            progress = (i + 1) / MCTS_ITERATIONS * 100
+            if progress % 10 == 0:  # 10% 단위로 출력
+                print(f"Progress: {int(progress)}%")
 
-    def place_piece(self):
-        tree = MCTS(self.board, PLAYER, "place_piece", True)
-        for _ in range(MCTS_ITERATIONS):
-            tree.do_rollout(self.board)
-        return tree.choose(self.board)
-        return 
+        best_node = tree.choose(node)
+        return best_node.board_state.selected_piece
+
+    def place_piece(self, selected_piece):
+        tree = MCTS(debug=False)
+        node = Node(self.board, PLAYER, "place_piece", selected_piece, debug=tree.debug)
+        for i in range(MCTS_ITERATIONS):
+            tree.do_rollout(node)
+
+            # 진행 상태를 10% 단위로 출력 (i / MCTS_ITERATIONS * 100)
+            progress = (i + 1) / MCTS_ITERATIONS * 100
+            if progress % 10 == 0:  # 10% 단위로 출력
+                print(f"Progress: {int(progress)}%")
+
+        best_node = tree.choose(node)
+        for row in range(BOARD_ROWS):
+            for col in range(BOARD_COLS):
+                if best_node.board_state[row][col] == self.pieces.index(selected_piece) + 1:  # 실제 값으로 비교
+                    return row, col
     
 class MCTS:
     "Monte Carlo tree searcher. First rollout the tree then choose a move."
@@ -80,11 +98,7 @@ class MCTS:
     def _expand(self, node):
         if node in self.children:
             return  # already expanded
-        if self.debug:
-            print(f"Expanding node: {node}")
         self.children[node] = node.find_children()
-        if self.debug:
-            print(f"Updated MCTS children for {node}: {self.children[node]}")
 
     def _simulate(self, node):
         "Returns the reward for a random simulation (to completion) of `node`"
@@ -121,30 +135,36 @@ class MCTS:
 
 
 class Node():
-    def __init__(self, board_state, player, current_state, debug=False):
-        self.board_state = Board(board_state)
-        self.player = player
-        self.current_state = current_state
+    def __init__(self, board_state, player, current_state, selected_piece = None, debug=False):
+        self.board_state = Board(board_state, player, current_state, selected_piece, debug)
         self.children = []
         self.debug = debug
 
     def find_children(self):
+        result = []
         # 플레이어 순서를 고려하여 자식 노드의 상태를 전환
-        if self.current_state == "select_piece":
+        if self.board_state.current_state == "select_piece":
             # select_piece 이후는 상대가 piece를 배치할 차례
-            next_state = "place_piece"
-            next_player = -self.player
-            result = [Node(self.board_state, next_player, next_state) for _ in self.board_state.available_places]
-        elif self.current_state == "place_piece":
-            # place_piece 이후는 상대가 piece를 선택할 차례
-            next_state = "select_piece"
-            next_player = -self.player
-            result = [Node(self.board_state, next_player, next_state) for _ in self.board_state.available_pieces]
+            for selected_piece in self.board_state.available_pieces:
+                next_board_state = copy.deepcopy(self.board_state)
+                next_board_state.select(selected_piece)
+                next_node = Node(next_board_state.get_board(), next_board_state.player, next_board_state.current_state, next_board_state.selected_piece, next_board_state.debug)
+                result.append(next_node)
+
+        elif self.board_state.current_state == "place_piece":
+            for selected_place in self.board_state.available_places:
+                next_board_state = copy.deepcopy(self.board_state)
+                next_board_state.place(selected_place[0], selected_place[1])
+                next_node = Node(next_board_state.get_board(), next_board_state.player, next_board_state.current_state, next_board_state.selected_piece, next_board_state.debug)
+                result.append(next_node)
         else:
-            raise TypeError(f'current_state({self.current_state}) is invalid')
+            raise TypeError(f'current_state({self.self.board_state.current_state}) is invalid')
         
         if self.debug:
-            print(f"Node {self} generated children: {result}")
+            print(f"Node {self} generated children {len(result)}:")
+            print()
+
+        self.children = result
         return result
 
     def find_random_child(self):
@@ -153,31 +173,46 @@ class Node():
     def is_terminal(self):
         return not bool(self.children)
 
-    def reward(self):
-        "Assumes `self` is terminal node. 1=win, 0=loss, .5=tie, etc"
-        if self.board_state.check_win():
-            return -1 * self.player == PLAYER
-        elif self.board_state.is_board_full():
-            return 0.5
-        else:
-            raise ValueError(f'board_state is not terminated')
-
     def __hash__(self):
-        return hash((tuple(self.board_state), self.player, self.current_state))
+        return hash(self.board_state)
 
     def __eq__(self, other):
-        # 다른 객체가 같은 클래스의 인스턴스인지 확인
-        if not isinstance(other, Node):
-            return False
-        
-        # 보드 상태, 플레이어, 현재 상태 비교
-        return (self.board_state == other.board_state and
-                self.player == other.player and
-                self.current_state == other.current_state)
+        return self.board_state == other.board_state
+    
+    def __str__(self):
+        return str(self.board_state)
+    
+    def reward(self):
+        "Assumes self is terminal node. 1=win, 0=loss, .5=tie, etc"
+        current_board = copy.deepcopy(self.board_state)
 
+        while not current_board.check_win() and not current_board.is_board_full():
+            # Randomly select a piece to give to the opponent
+            if current_board.current_state == "select_piece":
+                current_board.random_select()
+            
+            # Randomly place the piece on the board
+            elif current_board.current_state == "place_piece":
+                current_board.random_place()
+            
+            else:
+                raise TypeError(f'current_state({current_board.current_state}) is invalid')
+        
+        if current_board.check_win():
+            return -1 * current_board.player == PLAYER
+        elif current_board.is_board_full():
+            return 0.5
+        else:
+            raise TypeError('current_board is not terminal')
+            
+            
 class Board:
-    def __init__(self, board):
-        self.__board = copy.deepcopy(board)
+    def __init__(self, board, player, current_state, selected_piece = None, debug=False):
+        self.__board = board
+        self.player = player
+        self.current_state = current_state
+        self.selected_piece = selected_piece
+        self.debug = debug
         self.pieces = [(i, j, k, l) for i in range(2) for j in range(2) for k in range(2) for l in range(2)]  # All 16 pieces
         self.available_places = self.get_available_places()
         self.available_pieces = self.get_available_pieces()
@@ -185,7 +220,7 @@ class Board:
     def is_board_full(self):
         for row in range(BOARD_ROWS):
             for col in range(BOARD_COLS):
-                if self.board[row][col] == 0:
+                if self.__board[row][col] == 0:
                     return False
         return True
 
@@ -201,7 +236,7 @@ class Board:
     def check_2x2_subgrid_win(self):
         for r in range(BOARD_ROWS - 1):
             for c in range(BOARD_COLS - 1):
-                subgrid = [self.board[r][c], self.board[r][c+1], self.board[r+1][c], self.board[r+1][c+1]]
+                subgrid = [self.__board[r][c], self.__board[r][c+1], self.__board[r+1][c], self.__board[r+1][c+1]]
                 if 0 not in subgrid:  # All cells must be filled
                     characteristics = [self.pieces[idx - 1] for idx in subgrid]
                     for i in range(4):  # Check each characteristic (I/E, N/S, T/F, P/J)
@@ -212,14 +247,14 @@ class Board:
     def check_win(self):
         # Check rows, columns, and diagonals
         for col in range(BOARD_COLS):
-            if self.check_line([self.board[row][col] for row in range(BOARD_ROWS)]):
+            if self.check_line([self.__board[row][col] for row in range(BOARD_ROWS)]):
                 return True
         
         for row in range(BOARD_ROWS):
-            if self.check_line([self.board[row][col] for col in range(BOARD_COLS)]):
+            if self.check_line([self.__board[row][col] for col in range(BOARD_COLS)]):
                 return True
             
-        if self.check_line([self.board[i][i] for i in range(BOARD_ROWS)]) or self.check_line([self.board[i][BOARD_ROWS - i - 1] for i in range(BOARD_ROWS)]):
+        if self.check_line([self.__board[i][i] for i in range(BOARD_ROWS)]) or self.check_line([self.__board[i][BOARD_ROWS - i - 1] for i in range(BOARD_ROWS)]):
             return True
 
         # Check 2x2 sub-grids
@@ -232,7 +267,7 @@ class Board:
         available_places = []
         for row in range(BOARD_ROWS):
             for col in range(BOARD_COLS):
-                if self.board[row][col] == 0:
+                if self.__board[row][col] == 0:
                     available_places.append((row, col))
         return available_places
 
@@ -242,19 +277,76 @@ class Board:
 
         for row in range(BOARD_ROWS):
             for col in range(BOARD_COLS):
-                if self.available_square(row, col):
-                    self.available_positions.append((row, col))
                 num = self.__board[row][col]
                 if num != 0:
                     used_pieces.add(num)
                     
         available_indices = list(all_pieces - used_pieces)
-        return [self.pieces[idx] for idx in available_indices]
+        available_pieces = [self.pieces[idx - 1] for idx in available_indices]
+        if self.selected_piece is not None and self.selected_piece in available_pieces:
+            available_pieces.remove(self.selected_piece)
+        return available_pieces
+    
+    def get_board(self):
+        return self.__board
+    
+    def __getitem__(self, index):
+        # Delegate subscript access to __board
+        return self.__board[index]
+    
+    def __str__(self):
+        # Convert the board into a readable string
+        board_str = '\n'.join(' '.join(map(str, row)) for row in self.__board)
+        return f"Board:\n{board_str}\nPlayer: {self.player}\nState: {self.current_state}"
+    
+    def random_select(self):
+        if self.current_state != "select_piece":
+            raise TypeError(f"Now is {self.current_state} state")
+        
+        # Select a random available place
+        selected_piece = random.choice(self.available_pieces)
+        
+        self.select(selected_piece)
+    
+    def random_place(self):
+        if self.current_state != "place_piece":
+            raise TypeError("Now is select_piece state")
+        
+        # Place a random available piece
+        selected_place = random.choice(self.available_places)
+        
+        self.place(selected_place[0], selected_place[1])
     
     def place(self, row, col):
-        if self.__board.available_square(row, col):
-            self.__board[row][col] = self.selected_piece
-            self.selected_piece = None
+        self.current_state = "select_piece"
+        self.player = self.player
+        self.__board[row][col] = self.pieces.index(self.selected_piece) + 1
+        self.available_places.remove((row, col))
+        self.selected_piece = None
 
     def select(self, piece):
+        self.current_state = "place_piece"
+        self.player = -self.player
         self.selected_piece = piece
+        self.available_pieces.remove(piece)
+
+    def board_to_string(self):
+        return ','.join(map(str, sum(self.board_state._board, [])))
+    
+    def __hash__(self):
+    # Hash based on __board, player, and current_state
+        return hash((
+            tuple(tuple(row) for row in self.__board),  # Convert __board to immutable tuple
+            self.player,
+            self.current_state
+        ))
+
+    def __eq__(self, other):
+        # Equality check for hash compatibility
+        if not isinstance(other, Board):
+            return False
+        return (
+            all(self.__board[row][col] == other.__board[row][col] for row in range(BOARD_ROWS) for col in range(BOARD_COLS)) and
+            self.player == other.player and
+            self.current_state == other.current_state
+        )
