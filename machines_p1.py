@@ -4,7 +4,7 @@ from collections import defaultdict
 import math
 import copy
 
-MCTS_ITERATIONS = 1000
+MCTS_ITERATIONS = 100
 BOARD_ROWS = 4
 BOARD_COLS = 4
 
@@ -19,12 +19,14 @@ class P1():
     def select_piece(self):
         tree = MCTS(debug=False)
         node = Node(self.board, PLAYER, "select_piece", debug=tree.debug)
+                
         for i in range(MCTS_ITERATIONS):
+
             tree.do_rollout(node)
             
-            # 진행 상태를 10%씩 출력 (i / MCTS_ITERATIONS * 100)
+            # 진행 상태를 25%씩 출력 (i / MCTS_ITERATIONS * 100)
             progress = (i + 1) / MCTS_ITERATIONS * 100
-            if progress % 10 == 0:  # 10% 단위로 출력
+            if progress % 25 == 0:  # 25% 단위로 출력
                 print(f"Progress: {int(progress)}%")
 
         best_node = tree.choose(node)
@@ -33,12 +35,23 @@ class P1():
     def place_piece(self, selected_piece):
         tree = MCTS(debug=False)
         node = Node(self.board, PLAYER, "place_piece", selected_piece, debug=tree.debug)
+        tree.do_rollout(node)
+        if node in tree.children and tree.children[node]:
+            # Check if any child is an immediate win
+            for child in tree.children[node]:
+                if child.board_state.player == PLAYER and child.board_state.check_win():
+                    for row in range(BOARD_ROWS):
+                        for col in range(BOARD_COLS):
+                            if child.board_state[row][col] == self.pieces.index(selected_piece) + 1:  # 실제 값으로 비교
+                                print(f"is win in ({row}, {col})")
+                                return row, col
+                            
         for i in range(MCTS_ITERATIONS):
             tree.do_rollout(node)
 
-            # 진행 상태를 10% 단위로 출력 (i / MCTS_ITERATIONS * 100)
+            # 진행 상태를 25% 단위로 출력 (i / MCTS_ITERATIONS * 100)
             progress = (i + 1) / MCTS_ITERATIONS * 100
-            if progress % 10 == 0:  # 10% 단위로 출력
+            if progress % 25 == 0:  # 25% 단위로 출력
                 print(f"Progress: {int(progress)}%")
 
         best_node = tree.choose(node)
@@ -81,19 +94,22 @@ class MCTS:
         self._backpropagate(path, reward)
 
     def _select(self, node):
-        "Find an unexplored descendent of `node`"
         path = []
         while True:
             path.append(node)
             if node not in self.children or not self.children[node]:
-                # node is either unexplored or terminal
+                # Node is either unexplored or terminal
                 return path
+
+            # Explore unexplored nodes
             unexplored = self.children[node] - self.children.keys()
             if unexplored:
                 n = unexplored.pop()
                 path.append(n)
                 return path
-            node = self._uct_select(node)  # descend a layer deeper
+
+            # Descend deeper using UCT
+            node = self._uct_select(node)
 
     def _expand(self, node):
         if node in self.children:
