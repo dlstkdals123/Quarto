@@ -21,13 +21,7 @@ class P2():
         node = Node(self.board, PLAYER, "select_piece", debug=tree.debug)
                 
         for i in range(MCTS_ITERATIONS):
-
             tree.do_rollout(node)
-            
-            # 진행 상태를 25%씩 출력 (i / MCTS_ITERATIONS * 100)
-            progress = (i + 1) / MCTS_ITERATIONS * 100
-            if progress % 25 == 0:  # 25% 단위로 출력
-                print(f"Progress: {int(progress)}%")
 
         best_node = tree.choose(node)
         return best_node.board_state.selected_piece
@@ -43,16 +37,10 @@ class P2():
                     for row in range(BOARD_ROWS):
                         for col in range(BOARD_COLS):
                             if child.board_state[row][col] == self.pieces.index(selected_piece) + 1:  # 실제 값으로 비교
-                                print(f"is win in ({row}, {col})")
                                 return row, col
                             
         for i in range(MCTS_ITERATIONS):
             tree.do_rollout(node)
-
-            # 진행 상태를 25% 단위로 출력 (i / MCTS_ITERATIONS * 100)
-            progress = (i + 1) / MCTS_ITERATIONS * 100
-            if progress % 25 == 0:  # 25% 단위로 출력
-                print(f"Progress: {int(progress)}%")
 
         best_node = tree.choose(node)
         for row in range(BOARD_ROWS):
