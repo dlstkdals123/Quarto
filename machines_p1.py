@@ -17,7 +17,7 @@ class P1():
         self.available_pieces = available_pieces # Currently available pieces in a tuple type (e.g. (1, 0, 1, 0))
     
     def select_piece(self):
-        tree = MCTS(debug=False)
+        tree = MCTS(debug=True)
         node = Node(self.board, PLAYER, "select_piece", debug=tree.debug)
                 
         for i in range(MCTS_ITERATIONS):
@@ -82,6 +82,12 @@ class MCTS:
             if self.N[n] == 0:
                 return float("-inf")  # avoid unseen moves
             return self.Q[n] / self.N[n]  # average reward
+
+        if self.debug:
+            scores = {}
+            for child in self.children[node]:
+                scores[child] = score(child)
+                print(f"Score of {child}: {scores[child]}")
 
         return max(self.children[node], key=score)
 
@@ -175,10 +181,6 @@ class Node():
                 result.append(next_node)
         else:
             raise TypeError(f'current_state({self.self.board_state.current_state}) is invalid')
-        
-        if self.debug:
-            print(f"Node {self} generated children {len(result)}:")
-            print()
 
         self.children = result
         return result
@@ -215,12 +217,9 @@ class Node():
                 raise TypeError(f'current_state({current_board.current_state}) is invalid')
         
         if current_board.check_win():
-            return -1 * current_board.player == PLAYER
-        elif current_board.is_board_full():
-            return 0.5
+            return current_board.player == PLAYER
         else:
-            raise TypeError('current_board is not terminal')
-            
+            return 0.5
             
 class Board:
     def __init__(self, board, player, current_state, selected_piece = None, debug=False):
@@ -312,8 +311,11 @@ class Board:
     
     def __str__(self):
         # Convert the board into a readable string
-        board_str = '\n'.join(' '.join(map(str, row)) for row in self.__board)
-        return f"Board:\n{board_str}\nPlayer: {self.player}\nState: {self.current_state}"
+        if self.current_state == "place_piece":
+            return f"\nPlayer: {self.player}, Selected_piece: {self.selected_piece}\n"
+        else:
+            board_str = '\n'.join(' '.join(map(str, row)) for row in self.__board)
+            return f"\nPlayer: {self.player}, Board:\n{board_str}\n"
     
     def random_select(self):
         if self.current_state != "select_piece":
@@ -354,7 +356,8 @@ class Board:
         return hash((
             tuple(tuple(row) for row in self.__board),  # Convert __board to immutable tuple
             self.player,
-            self.current_state
+            self.current_state,
+            self.selected_piece
         ))
 
     def __eq__(self, other):
@@ -364,5 +367,6 @@ class Board:
         return (
             all(self.__board[row][col] == other.__board[row][col] for row in range(BOARD_ROWS) for col in range(BOARD_COLS)) and
             self.player == other.player and
-            self.current_state == other.current_state
+            self.current_state == other.current_state and
+            self.selected_piece == other.selected_piece 
         )
