@@ -10,7 +10,6 @@
 - 현재 보드에 놓인 말의 개수에 따라 MCTS에서 Minimax로 알고리즘 변경
 - P2인 경우 MCTS을 하지 않고 랜덤하게 선택
 - MCTS 중 Simulation 설정(현재는 완전 랜덤)
-- MCTS 중 Select가 이상함
 - Simulation Main 만들어서 승률 분석
 - (최적화: 보드 대칭 및 회전, pieces 분류)
 - (유전 알고리즘 적용 및 결과 분석)
@@ -18,6 +17,7 @@
 ### Closed Issue
 - ~~MCTS 구현~~
 - ~~MCTS에서 당장 이길 수 있다면, 그것을 선택~~
+- ~~MCTS 중 Select가 이상함~~
 
 # Github 협업 가이드
 ## 1. Issue 생성
