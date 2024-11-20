@@ -170,10 +170,6 @@ class Node():
             for key, pieces in self.board_state.available_pieces.items():
                 next_board_state = copy.deepcopy(self.board_state)
                 next_board_state.select(next(iter(pieces)))
-                for node in result:
-                    if node.board_state == next_board_state:
-                        print(f"{node.board_state}\n\n{next_board_state}\n\n")
-                        continue
                 next_node = Node(next_board_state.get_board(), next_board_state.player, next_board_state.current_state, next_board_state.selected_piece, next_board_state.debug)
                 result.append(next_node)
 
@@ -181,10 +177,6 @@ class Node():
             for selected_place in self.board_state.available_places:
                 next_board_state = copy.deepcopy(self.board_state)
                 next_board_state.place(selected_place[0], selected_place[1])
-                for node in result:
-                    if node.board_state == next_board_state:
-                        print(f"{node.board_state}\n\n{next_board_state}\n\n")
-                        continue
                 next_node = Node(next_board_state.get_board(), next_board_state.player, next_board_state.current_state, next_board_state.selected_piece, next_board_state.debug)
                 result.append(next_node)
         else:
