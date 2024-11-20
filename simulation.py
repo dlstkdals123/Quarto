@@ -94,97 +94,83 @@ def second2hhmmss(seconds):
         return f"{seconds:.1f}s"
 
 # Game loop
-turn = 1 
-flag = "select_piece"
-game_over = False
-selected_piece = None
+turn = 1
 
 ITERATION = 10
-LOG_DIR = "log"
-LOG_FILENAME = os.path.join(LOG_DIR, f"log_{datetime.now().strftime('%m%d_%H%M%S')}.txt")
-os.makedirs(LOG_DIR, exist_ok=True)
-
-total_time_consumption = {
-    1: 0,
-    2: 0
-}
 
 results = {"P1": {"wins": 0, "draws": 0, "loses": 0, "timeouts": 0, "total_time": 0},
            "P2": {"wins": 0, "draws": 0, "loses": 0, "timeouts": 0, "total_time": 0}}
 
-with open(LOG_FILENAME, "w") as log_file:
-    for iteration in range(1, ITERATION + 1):
-        if iteration % (ITERATION // 10) == 0:
-            print(f"Progress: {iteration / ITERATION * 100:.0f}% completed")
+for iteration in range(1, ITERATION + 1):
+    print(f"iteration: {iteration} is running...")
+    restart_game()
+    game_over = False
+    flag = "select_piece"
+    total_time_consumption = {1: 0, 2: 0}
+    winner = None
 
-        restart_game()
-        game_over = False
-        turn = 1
-        flag = "select_piece"
-        total_time_consumption = {1: 0, 2: 0}
-        winner = None
+    while not game_over:
+        if flag == "select_piece":
+            begin = time.time()
+            player = players[3 - turn](board=board, available_pieces=available_pieces)
+            selected_piece = player.select_piece()
+            for row in range(BOARD_ROWS):
+                for col in range(BOARD_COLS):
+                    if board[row][col] == pieces.index(selected_piece) + 1:
+                        raise TypeError(f"P{3 - turn}; wrong selection")
+            finish = time.time()
+            elapsed_time = finish - begin
+            total_time_consumption[3 - turn] += elapsed_time
 
-        while not game_over:
-            if flag == "select_piece":
-                begin = time.time()
-                player = players[3 - turn](board=board, available_pieces=available_pieces)
-                selected_piece = player.select_piece()
-                finish = time.time()
-                elapsed_time = finish - begin
-                total_time_consumption[3 - turn] += elapsed_time
-
-                if total_time_consumption[3 - turn] > 300:
-                    game_over = True
-                    winner = 3 - turn  # 상대방 승리
-                    results[f"P{3 - turn}"]["timeouts"] += 1
-                    break
-
-                flag = "place_piece"
-            else:
-                begin = time.time()
-                player = players[turn](board=board, available_pieces=available_pieces)
-                (board_row, board_col) = player.place_piece(selected_piece)
-                finish = time.time()
-                elapsed_time = finish - begin
-                total_time_consumption[turn] += elapsed_time
-
-                if total_time_consumption[turn] > 300:
-                    game_over = True
-                    winner = 3 - turn  # 상대방 승리
-                    results[f"P{turn}"]["timeouts"] += 1
-                    break
-
-                if available_square(board_row, board_col):
-                    board[board_row][board_col] = pieces.index(selected_piece) + 1
-                    available_pieces.remove(selected_piece)
-                    selected_piece = None
-
-                    if check_win():
-                        game_over = True
-                        winner = turn
-                    elif is_board_full():
-                        game_over = True
-                        winner = None
-                    else:
-                        turn = 3 - turn
-                        flag = "select_piece"
-                else:
-                    raise TypeError(f"P{turn}; wrong selection")
-
-        # 기록
-        if winner:
-            loser = 3 - winner
-            results[f"P{winner}"]["wins"] += 1
-            results[f"P{loser}"]["loses"] += 1
+            flag = "place_piece"
         else:
-            results["P1"]["draws"] += 1
-            results["P2"]["draws"] += 1
+            begin = time.time()
+            player = players[turn](board=board, available_pieces=available_pieces)
+            (board_row, board_col) = player.place_piece(selected_piece)
+            finish = time.time()
+            elapsed_time = finish - begin
+            total_time_consumption[turn] += elapsed_time
 
-        results["P1"]["total_time"] += total_time_consumption[1]
-        results["P2"]["total_time"] += total_time_consumption[2]
+            if available_square(board_row, board_col):
+                board[board_row][board_col] = pieces.index(selected_piece) + 1
+                available_pieces.remove(selected_piece)
+                selected_piece = None
 
-    # 종합 통계
-    summary_lines = ["Summary:\nMCTS_ITERATIONS: P1=(write this), P2=(write this)\n"]  # Summary 제목 추가
+                if check_win():
+                    game_over = True
+                    winner = turn
+                elif is_board_full():
+                    game_over = True
+                    winner = None
+                else:
+                    turn = 3 - turn
+                    flag = "select_piece"
+            else:
+                raise TypeError(f"P{3 - turn}; wrong selection")
+
+    # 기록
+    if winner:
+        loser = 3 - winner
+        results[f"P{winner}"]["wins"] += 1
+        results[f"P{loser}"]["loses"] += 1
+    else:
+        results["P1"]["draws"] += 1
+        results["P2"]["draws"] += 1
+
+    results["P1"]["total_time"] += total_time_consumption[1]
+    if total_time_consumption[1] >= 300:
+        results["P1"]["timeouts"] += 1
+    results["P2"]["total_time"] += total_time_consumption[2]
+    if total_time_consumption[2] >= 300:
+        results["P2"]["timeouts"] += 1
+
+LOG_DIR = "log"
+LOG_FILENAME = os.path.join(LOG_DIR, f"log_{datetime.now().strftime('%m%d_%H%M%S')}.txt")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+with open(LOG_FILENAME, "w") as log_file:
+# 종합 통계
+    summary_lines = [f"Summary:\nTotal_Iteration: {ITERATION}\nMCTS_ITERATIONS: P1=(write this), P2=(write this)\n"]  # Summary 제목 추가
     for player in ["P1", "P2"]:
         total_games = ITERATION
         wins = results[player]["wins"]
