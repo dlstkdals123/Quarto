@@ -4,11 +4,12 @@ from collections import defaultdict
 import math
 import copy
 
-MCTS_ITERATIONS = 100
+MCTS_ITERATIONS = 500
 BOARD_ROWS = 4
 BOARD_COLS = 4
 
 PLAYER = 1
+isFirst = True # P2인 경우 True로 바꿔주세요.
 
 class P2():
     def __init__(self, board, available_pieces):
@@ -17,10 +18,16 @@ class P2():
         self.available_pieces = available_pieces # Currently available pieces in a tuple type (e.g. (1, 0, 1, 0))
     
     def select_piece(self):
+        global isFirst
+        if isFirst:
+            isFirst = False
+            return random.choice(self.pieces)
         tree = MCTS(debug=False)
         node = Node(self.board, PLAYER, "select_piece", debug=tree.debug)
                 
         for i in range(MCTS_ITERATIONS):
+            # if (i + 1) % (MCTS_ITERATIONS // 10) == 0 or i + 1 == MCTS_ITERATIONS:
+            #     print(f"Progress: {((i + 1) / MCTS_ITERATIONS) * 100:.0f}%")
             tree.do_rollout(node)
 
         best_node = tree.choose(node)
@@ -40,6 +47,9 @@ class P2():
                                 return row, col
                             
         for i in range(MCTS_ITERATIONS):
+            # if (i + 1) % (MCTS_ITERATIONS // 10) == 0 or i + 1 == MCTS_ITERATIONS:
+            #     print(f"Progress: {((i + 1) / MCTS_ITERATIONS) * 100:.0f}%")
+
             tree.do_rollout(node)
 
         best_node = tree.choose(node)
@@ -76,6 +86,7 @@ class MCTS:
             for child in self.children[node]:
                 scores[child] = score(child)
                 print(f"Score of {child}: {scores[child]}")
+
         return max(self.children[node], key=score)
 
     def do_rollout(self, node):
@@ -112,11 +123,13 @@ class MCTS:
     def _simulate(self, node):
         "Returns the reward for a random simulation (to completion) of `node`"
         invert_reward = True
+        depth = 1
         while True:
             if node.is_terminal():
-                reward = node.reward()
+                reward = node.reward(depth)
                 return 1 - reward if invert_reward else reward
             node = node.find_random_child()
+            depth += 1
             invert_reward = not invert_reward
 
     def _backpropagate(self, path, reward):
@@ -154,9 +167,13 @@ class Node():
         # 플레이어 순서를 고려하여 자식 노드의 상태를 전환
         if self.board_state.current_state == "select_piece":
             # select_piece 이후는 상대가 piece를 배치할 차례
-            for selected_piece in self.board_state.available_pieces:
+            for key, pieces in self.board_state.available_pieces.items():
                 next_board_state = copy.deepcopy(self.board_state)
-                next_board_state.select(selected_piece)
+                next_board_state.select(next(iter(pieces)))
+                for node in result:
+                    if node.board_state == next_board_state:
+                        print(f"{node.board_state}\n\n{next_board_state}\n\n")
+                        continue
                 next_node = Node(next_board_state.get_board(), next_board_state.player, next_board_state.current_state, next_board_state.selected_piece, next_board_state.debug)
                 result.append(next_node)
 
@@ -164,6 +181,10 @@ class Node():
             for selected_place in self.board_state.available_places:
                 next_board_state = copy.deepcopy(self.board_state)
                 next_board_state.place(selected_place[0], selected_place[1])
+                for node in result:
+                    if node.board_state == next_board_state:
+                        print(f"{node.board_state}\n\n{next_board_state}\n\n")
+                        continue
                 next_node = Node(next_board_state.get_board(), next_board_state.player, next_board_state.current_state, next_board_state.selected_piece, next_board_state.debug)
                 result.append(next_node)
         else:
@@ -187,7 +208,7 @@ class Node():
     def __str__(self):
         return str(self.board_state)
     
-    def reward(self):
+    def reward(self, depth):
         "Assumes self is terminal node. 1=win, 0=loss, .5=tie, etc"
         current_board = copy.deepcopy(self.board_state)
 
@@ -204,12 +225,9 @@ class Node():
                 raise TypeError(f'current_state({current_board.current_state}) is invalid')
         
         if current_board.check_win():
-            return -1 * current_board.player == PLAYER
-        elif current_board.is_board_full():
-            return 0.5
+            return (current_board.player == PLAYER) / depth
         else:
-            raise TypeError('current_board is not terminal')
-            
+            return 0.5
             
 class Board:
     def __init__(self, board, player, current_state, selected_piece = None, debug=False):
@@ -278,6 +296,8 @@ class Board:
 
     def get_available_pieces(self):
         all_pieces = set(range(1, 17))  # 1부터 16까지의 전체 인덱스
+        if self.selected_piece is not None:
+            all_pieces.remove(self.pieces.index(self.selected_piece) + 1)
         used_pieces = set()
 
         for row in range(BOARD_ROWS):
@@ -285,12 +305,20 @@ class Board:
                 num = self.__board[row][col]
                 if num != 0:
                     used_pieces.add(num)
-                    
-        available_indices = list(all_pieces - used_pieces)
-        available_pieces = [self.pieces[idx - 1] for idx in available_indices]
-        if self.selected_piece is not None and self.selected_piece in available_pieces:
-            available_pieces.remove(self.selected_piece)
-        return available_pieces
+                    all_pieces.remove(num)
+
+        grouped_pieces = defaultdict(set)
+        
+        for piece1 in all_pieces:
+            difference_counts = []
+            for piece2 in used_pieces:
+                difference_counts.append(sum(1 for a, b in zip(self.pieces[piece1 - 1], self.pieces[piece2 - 1]) if a != b))
+            
+            sorted_differences = sorted(difference_counts)
+
+            grouped_pieces[tuple(sorted_differences)].add(self.pieces[piece1 - 1])
+        # print(grouped_pieces)
+        return grouped_pieces
     
     def get_board(self):
         return self.__board
@@ -301,16 +329,21 @@ class Board:
     
     def __str__(self):
         # Convert the board into a readable string
-        board_str = '\n'.join(' '.join(map(str, row)) for row in self.__board)
-        return f"Board:\n{board_str}\nPlayer: {self.player}\nState: {self.current_state}"
+        if self.current_state == "place_piece":
+            return f"\nPlayer: {self.player}, Selected_piece: {self.selected_piece}\n"
+        else:
+            board_str = '\n'.join(' '.join(map(str, row)) for row in self.__board)
+            return f"\nPlayer: {self.player}, Board:\n{board_str}\n"
     
     def random_select(self):
         if self.current_state != "select_piece":
             raise TypeError(f"Now is {self.current_state} state")
         
         # Select a random available place
-        selected_piece = random.choice(self.available_pieces)
-        
+        random_key = random.choice(list(self.available_pieces.keys()))
+
+        selected_piece = random.choice(list(self.available_pieces[random_key]))
+
         self.select(selected_piece)
     
     def random_place(self):
@@ -330,28 +363,39 @@ class Board:
         self.selected_piece = None
 
     def select(self, piece):
+        if not any(piece in s for s in self.available_pieces.values()):
+            raise ValueError(f"The selected piece {piece} is not available")
+
         self.current_state = "place_piece"
         self.player = -self.player
         self.selected_piece = piece
-        self.available_pieces.remove(piece)
+
+        for key in list(self.available_pieces.keys()):  # 키 목록을 복사
+            if piece in self.available_pieces[key]:
+                self.available_pieces[key].remove(piece)
+                if not self.available_pieces[key]:  # 값이 비었다면 키 삭제
+                    del self.available_pieces[key]
 
     def board_to_string(self):
         return ','.join(map(str, sum(self.board_state._board, [])))
     
     def __hash__(self):
-    # Hash based on __board, player, and current_state
-        return hash((
-            tuple(tuple(row) for row in self.__board),  # Convert __board to immutable tuple
-            self.player,
-            self.current_state
-        ))
+        return hash(self.__board.tobytes()) ^ hash(self.player) ^ hash(self.current_state) ^ hash(self.selected_piece)
 
     def __eq__(self, other):
         # Equality check for hash compatibility
         if not isinstance(other, Board):
             return False
+        
+        if self.available_pieces.keys() != other.available_pieces.keys():
+            return False
+        
+        for key in self.available_pieces.keys():
+            if self.available_pieces[key] != other.available_pieces[key]:
+                return False
+            
         return (
-            all(self.__board[row][col] == other.__board[row][col] for row in range(BOARD_ROWS) for col in range(BOARD_COLS)) and
             self.player == other.player and
-            self.current_state == other.current_state
+            self.current_state == other.current_state and
+            self.selected_piece == other.selected_piece 
         )
