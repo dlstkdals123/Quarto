@@ -20,7 +20,7 @@ class P1():
     def select_piece(self):
         global isFirst
         if isFirst:
-            isFirst = True
+            isFirst = False
             return random.choice(self.pieces)
         tree = MCTS(debug=False)
         node = Node(self.board, PLAYER, "select_piece", debug=tree.debug)
