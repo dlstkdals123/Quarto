@@ -37,14 +37,9 @@ class P1():
         tree = MCTS(debug=False)
         node = Node(self.board, PLAYER, "place_piece", selected_piece, debug=tree.debug)
         tree.do_rollout(node)
-        if node in tree.children and tree.children[node]:
-            # Check if any child is an immediate win
-            for child in tree.children[node]:
-                if child.board_state.player == PLAYER and child.board_state.check_win():
-                    for row in range(BOARD_ROWS):
-                        for col in range(BOARD_COLS):
-                            if child.board_state[row][col] == self.pieces.index(selected_piece) + 1:  # 실제 값으로 비교
-                                return row, col
+        for row, col in node.board_state.available_places:
+            if node.board_state.check_win(selected_piece, row, col):
+                return row, col
                             
         for i in range(MCTS_ITERATIONS):
             # if (i + 1) % (MCTS_ITERATIONS // 10) == 0 or i + 1 == MCTS_ITERATIONS:
@@ -204,22 +199,26 @@ class Node():
         "Assumes self is terminal node. 1=win, 0=loss, .5=tie, etc"
         current_board = copy.deepcopy(self.board_state)
 
-        while not current_board.check_win() and not current_board.is_board_full():
+        while not current_board.is_board_full():
             # Randomly select a piece to give to the opponent
             if current_board.current_state == "select_piece":
                 current_board.random_select()
             
             # Randomly place the piece on the board
             elif current_board.current_state == "place_piece":
-                current_board.random_place()
+                row, col = current_board.random_place()
+                selected_piece = current_board.selected_piece
+                if current_board.check_win(selected_piece, row, col):
+                    return (current_board.player == PLAYER) / depth
+                else:
+                    current_board.place(row, col)
             
             else:
                 raise TypeError(f'current_state({current_board.current_state}) is invalid')
+            
+            depth += 1
         
-        if current_board.check_win():
-            return (current_board.player == PLAYER) / depth
-        else:
-            return 0.5
+        return 0.5
             
 class Board:
     def __init__(self, board, player, current_state, selected_piece = None, debug=False):
@@ -239,44 +238,57 @@ class Board:
                     return False
         return True
 
-    def check_line(self, line):
-        if 0 in line:
-            return False  # Incomplete line
-        characteristics = np.array([self.pieces[piece_idx - 1] for piece_idx in line])
-        for i in range(4):  # Check each characteristic (I/E, N/S, T/F, P/J)
-            if len(set(characteristics[:, i])) == 1:  # All share the same characteristic
-                return True
-        return False
+    def check_win(self, piece, x, y):
+        """
+        Check if placing the given piece at (x, y) results in a win.
+        This includes row, column, diagonal, and 2x2 square checks.
+        """
+        # Place the piece temporarily
+        original_value = self.__board[x][y]
+        self.__board[x][y] = self.pieces.index(piece) + 1
 
-    def check_2x2_subgrid_win(self):
-        for r in range(BOARD_ROWS - 1):
-            for c in range(BOARD_COLS - 1):
-                subgrid = [self.__board[r][c], self.__board[r][c+1], self.__board[r+1][c], self.__board[r+1][c+1]]
-                if 0 not in subgrid:  # All cells must be filled
-                    characteristics = [self.pieces[idx - 1] for idx in subgrid]
-                    for i in range(4):  # Check each characteristic (I/E, N/S, T/F, P/J)
-                        if len(set(char[i] for char in characteristics)) == 1:  # All share the same characteristic
-                            return True
-        return False
+        def has_common_attribute(line):
+            """Check if all pieces in a line share at least one common attribute."""
+            attributes = [0, 0, 0, 0]  # Attributes: (bit0, bit1, bit2, bit3)
+            for cell in line:
+                if cell == 0:  # Skip empty cells
+                    return False
+                for i in range(4):  # Check each bit
+                    attributes[i] += cell[i]
+            return any(attr == len(line) or attr == 0 for attr in attributes)
 
-    def check_win(self):
         # Check rows, columns, and diagonals
-        for col in range(BOARD_COLS):
-            if self.check_line([self.__board[row][col] for row in range(BOARD_ROWS)]):
-                return True
-        
-        for row in range(BOARD_ROWS):
-            if self.check_line([self.__board[row][col] for col in range(BOARD_COLS)]):
-                return True
-            
-        if self.check_line([self.__board[i][i] for i in range(BOARD_ROWS)]) or self.check_line([self.__board[i][BOARD_ROWS - i - 1] for i in range(BOARD_ROWS)]):
-            return True
+        row = [self.pieces[self.__board[x][j] - 1] for j in range(BOARD_ROWS)]
+        col = [self.pieces[self.__board[i][y] - 1] for i in range(BOARD_COLS)]
+        diag1 = [self.pieces[self.__board[i][i] - 1] for i in range(BOARD_COLS)] if x == y else []  # Main diagonal
+        diag2 = [self.pieces[self.__board[i][BOARD_ROWS - 1 - i] - 1] for i in range(BOARD_COLS)] if x + y == BOARD_ROWS - 1 else []
 
-        # Check 2x2 sub-grids
-        if self.check_2x2_subgrid_win():
-            return True
-        
-        return False
+        # Check 2x2 squares
+        squares = []
+        for i in range(max(0, x - 1), min(BOARD_ROWS - 2, x) + 1):
+            for j in range(max(0, y - 1), min(BOARD_ROWS - 2, y) + 1):
+                square = [
+                    self.pieces[self.__board[i][j] - 1],
+                    self.pieces[self.__board[i][j + 1] - 1],
+                    self.pieces[self.__board[i + 1][j] - 1],
+                    self.pieces[self.__board[i + 1][j + 1] - 1]
+                ]
+                squares.append(square)
+
+        # Evaluate win conditions
+        try:
+            is_win = any(
+                has_common_attribute(line)
+                for line in [row, col, diag1, diag2] if line
+            ) or any(
+                has_common_attribute(square)
+                for square in squares if len(square) == 4
+            )
+        finally:
+            # Restore the board in case of mutable object issues
+            self.__board[x][y] = original_value
+
+        return is_win
 
     def get_available_places(self):
         available_places = []
@@ -344,8 +356,7 @@ class Board:
         
         # Place a random available piece
         selected_place = random.choice(self.available_places)
-        
-        self.place(selected_place[0], selected_place[1])
+        return selected_place[0], selected_place[1]
     
     def place(self, row, col):
         self.current_state = "select_piece"

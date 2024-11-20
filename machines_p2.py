@@ -8,7 +8,7 @@ MCTS_ITERATIONS = 500
 BOARD_ROWS = 4
 BOARD_COLS = 4
 
-PLAYER = 1
+PLAYER = 2
 isFirst = True # P2인 경우 True로 바꿔주세요.
 
 class P2():
