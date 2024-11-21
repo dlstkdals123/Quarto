@@ -146,7 +146,7 @@ for iteration in range(1, ITERATION + 1):
                     turn = 3 - turn
                     flag = "select_piece"
             else:
-                raise TypeError(f"P{3 - turn}; wrong selection")
+                raise TypeError(f"P{turn}; wrong selection")
 
     # 기록
     if winner:
