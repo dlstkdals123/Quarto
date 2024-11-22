@@ -4,7 +4,7 @@ from collections import defaultdict
 import math
 import copy
 
-MCTS_ITERATIONS = 500
+MCTS_ITERATIONS = 10
 BOARD_ROWS = 4
 BOARD_COLS = 4
 
@@ -183,12 +183,27 @@ class Node():
         result = []
         # 플레이어 순서를 고려하여 자식 노드의 상태를 전환
         if self.board_state.current_state == "select_piece":
-            # select_piece 이후는 상대가 piece를 배치할 차례
+            if self.board_state.player == PLAYER:
+                print("--------------------------------------------------------")
+                print(self.board_state)
             for piece in self.board_state.available_pieces:
                 next_board = copy.deepcopy(self.board_state)
                 next_board.select(piece)
-                next_node = Node(next_board, debug=self.debug)
-                result.append(next_node)
+
+                is_opponent_win = False
+
+                if next_board.player != PLAYER:
+                    for row, col in next_board.available_places:
+                        if next_board.check_win_with_piece(piece, row, col):
+                            next_board.place(row, col)
+                            is_opponent_win = True
+                            print("********************************")
+                            print(f"{next_board} is winning with {piece} at ({row}, {col})")
+                            break
+                
+                if not is_opponent_win:
+                    next_node = Node(next_board, debug=self.debug)
+                    result.append(next_node)
 
         elif self.board_state.current_state == "place_piece":
             for selected_place in self.board_state.available_places:
