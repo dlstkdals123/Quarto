@@ -17,7 +17,6 @@
 - ~~MCTS에서 당장 이길 수 있다면, 그것을 선택~~
 - ~~MCTS 중 Select가 이상함~~
 - ~~Simulation Main 만들어서 승률 분석~~
-- ~~pieces 분류~~
 - ~~P2인 경우 첫 시작은 MCTS을 하지 않고 랜덤하게 선택~~
 
 # Github 협업 가이드
