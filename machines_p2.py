@@ -4,7 +4,7 @@ from collections import defaultdict
 import math
 import copy
 
-MCTS_ITERATIONS = 1
+MCTS_ITERATIONS = 500
 BOARD_ROWS = 4
 BOARD_COLS = 4
 

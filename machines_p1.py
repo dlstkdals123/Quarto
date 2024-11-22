@@ -4,7 +4,7 @@ from collections import defaultdict
 import math
 import copy
 
-MCTS_ITERATIONS = 10
+MCTS_ITERATIONS = 500
 BOARD_ROWS = 4
 BOARD_COLS = 4
 
@@ -34,6 +34,9 @@ class P1():
 
         best_node = tree.choose(node)
 
+        if not best_node:
+            return random.choice(self.available_pieces)
+        
         return best_node.board_state.selected_piece
 
     def place_piece(self, selected_piece):
@@ -54,6 +57,9 @@ class P1():
             tree.do_rollout(node)
 
         best_node = tree.choose(node)
+        if not best_node:
+            return random.choice(self.available_places)
+        
         for row in range(BOARD_ROWS):
             for col in range(BOARD_COLS):
                 if best_node.board_state[row][col] == self.pieces.index(selected_piece) + 1:  # 실제 값으로 비교
@@ -78,8 +84,15 @@ class MCTS:
 
     def choose(self, node):
         "Choose the best successor of node. (Choose a move in the game)"
-        if node.is_terminal():
-            raise RuntimeError(f"choose called on terminal node {node}")
+        if self.children[node] is None:
+            raise ValueError("Cannot choose from unexplored node")
+    
+        # if self.children[node] == []:
+        #     if node.board_state.current_state == "select_piece":
+        #         return random.choice(node.board_state.available_pieces)
+        #     else:
+        #         return random.choice(node.board_state.available_places)
+            
 
         if node not in self.children:
             return node.find_random_child()
@@ -136,7 +149,6 @@ class MCTS:
             else:
                 deleted_nodes += 1
 
-
     def _simulate(self, node):
         "Returns the reward for a random simulation (to completion) of `node`"
         invert_reward = True
@@ -183,27 +195,21 @@ class Node():
         result = []
         # 플레이어 순서를 고려하여 자식 노드의 상태를 전환
         if self.board_state.current_state == "select_piece":
-            if self.board_state.player == PLAYER:
-                print("--------------------------------------------------------")
-                print(self.board_state)
             for piece in self.board_state.available_pieces:
-                next_board = copy.deepcopy(self.board_state)
-                next_board.select(piece)
-
                 is_opponent_win = False
 
-                if next_board.player != PLAYER:
-                    for row, col in next_board.available_places:
-                        if next_board.check_win_with_piece(piece, row, col):
-                            next_board.place(row, col)
+                if self.board_state.player == PLAYER:
+                    for row, col in self.board_state.available_places:
+                        if self.board_state.check_win_with_piece(piece, row, col):
                             is_opponent_win = True
-                            print("********************************")
-                            print(f"{next_board} is winning with {piece} at ({row}, {col})")
                             break
                 
                 if not is_opponent_win:
+                    next_board = copy.deepcopy(self.board_state)
+                    next_board.select(piece)
                     next_node = Node(next_board, debug=self.debug)
                     result.append(next_node)
+
 
         elif self.board_state.current_state == "place_piece":
             for selected_place in self.board_state.available_places:
@@ -370,7 +376,7 @@ class Board:
                         piece_text = f"{'I' if piece[0] == 0 else 'E'}{'N' if piece[1] == 0 else 'S'}{'T' if piece[2] == 0 else 'F'}{'P' if piece[3] == 0 else 'J'}"
                     board_str += f"{piece_text} "
                 board_str += '\n'
-            return f"\nPlayer: {self.player}, Board:\n{board_str}\n"
+            return f"\nPlayer: {self.player}, Current_state: {self.current_state}, Selected_piece: {self.selected_piece}\n{board_str}\n"
         
     def __getitem__(self, index):
         return self.__board[index]
