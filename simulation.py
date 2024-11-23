@@ -96,7 +96,7 @@ def second2hhmmss(seconds):
 # Game loop
 turn = 1
 
-ITERATION = 100
+ITERATION = 10
 
 results = {"P1": {"wins": 0, "draws": 0, "loses": 0, "timeouts": 0, "total_time": 0},
            "P2": {"wins": 0, "draws": 0, "loses": 0, "timeouts": 0, "total_time": 0}}

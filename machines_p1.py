@@ -26,7 +26,30 @@ class P1():
         tree = MCTS(debug=False)
         board = Board(self.board, PLAYER, "select_piece", None, self.available_places, self.available_pieces, debug=False)
         node = Node(board, debug=False)
-                
+        
+        print("--------------------------------")
+        tree.children[node] = []
+        for piece in board.available_pieces:
+            piece_text = f"{'I' if piece[0] == 0 else 'E'}{'N' if piece[1] == 0 else 'S'}{'T' if piece[2] == 0 else 'F'}{'P' if piece[3] == 0 else 'J'}"
+
+            is_opponent_win = False
+            print(f"{piece_text} is checking now...", end = ' ')
+            for row, col in self.available_places:
+                if board.check_win_with_piece(piece, row, col):
+                    is_opponent_win = True
+                    break
+            
+            if not is_opponent_win:
+                print("Can")
+                next_board = copy.deepcopy(board)
+                next_board.select(piece)
+                next_node = Node(next_board, debug=board.debug)
+                tree.children[node].append(next_node)
+            else:
+                print("Cant")
+        reward = tree._simulate(node)
+        tree._backpropagate([node], reward)
+
         for i in range(MCTS_ITERATIONS):
             # if (i + 1) % (MCTS_ITERATIONS // 10) == 0 or i + 1 == MCTS_ITERATIONS:
             #     print(f"Progress: {((i + 1) / MCTS_ITERATIONS) * 100:.0f}%")
@@ -87,11 +110,11 @@ class MCTS:
         if self.children[node] is None:
             raise ValueError("Cannot choose from unexplored node")
     
-        # if self.children[node] == []:
-        #     if node.board_state.current_state == "select_piece":
-        #         return random.choice(node.board_state.available_pieces)
-        #     else:
-        #         return random.choice(node.board_state.available_places)
+        if self.children[node] == []:
+            if node.board_state.current_state == "select_piece":
+                return random.choice(node.board_state.available_pieces)
+            else:
+                return random.choice(node.board_state.available_places)
             
 
         if node not in self.children:
@@ -196,20 +219,10 @@ class Node():
         # 플레이어 순서를 고려하여 자식 노드의 상태를 전환
         if self.board_state.current_state == "select_piece":
             for piece in self.board_state.available_pieces:
-                is_opponent_win = False
-
-                if self.board_state.player == PLAYER:
-                    for row, col in self.board_state.available_places:
-                        if self.board_state.check_win_with_piece(piece, row, col):
-                            is_opponent_win = True
-                            break
-                
-                if not is_opponent_win:
-                    next_board = copy.deepcopy(self.board_state)
-                    next_board.select(piece)
-                    next_node = Node(next_board, debug=self.debug)
-                    result.append(next_node)
-
+                next_board = copy.deepcopy(self.board_state)
+                next_board.select(piece)
+                next_node = Node(next_board, debug=self.debug)
+                result.append(next_node)
 
         elif self.board_state.current_state == "place_piece":
             for selected_place in self.board_state.available_places:
