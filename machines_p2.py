@@ -8,14 +8,15 @@ MCTS_ITERATIONS = 500
 BOARD_ROWS = 4
 BOARD_COLS = 4
 
-PLAYER = 2
+PLAYER = 1
 isFirst = True # P2인 경우 True로 바꿔주세요.
 
-class P2():
+class P1():
     def __init__(self, board, available_pieces):
         self.pieces = [(i, j, k, l) for i in range(2) for j in range(2) for k in range(2) for l in range(2)]  # All 16 pieces
         self.board = board # Include piece indices. 0:empty / 1~16:piece
         self.available_pieces = available_pieces # Currently available pieces in a tuple type (e.g. (1, 0, 1, 0))
+        self.available_places = self.get_available_places()
     
     def select_piece(self):
         global isFirst
@@ -23,44 +24,79 @@ class P2():
             isFirst = False
             return random.choice(self.pieces)
         tree = MCTS(debug=False)
-        node = Node(self.board, PLAYER, "select_piece", debug=tree.debug)
-                
+        board = Board(self.board, PLAYER, "select_piece", None, self.available_places, self.available_pieces, debug=False)
+        node = Node(board, debug=False)
+        
+        tree.children[node] = []
+        for piece in board.available_pieces:
+            is_opponent_win = False
+            for row, col in self.available_places:
+                if board.check_win_with_piece(piece, row, col):
+                    is_opponent_win = True
+                    break
+            
+            if not is_opponent_win:
+                next_board = copy.deepcopy(board)
+                next_board.select(piece)
+                next_node = Node(next_board, debug=board.debug)
+                tree.children[node].append(next_node)
+
+        if not tree.children[node]: # lose
+            return random.choice(self.available_pieces)
+        
+        if len(tree.children[node]) == 1: #only one piece
+            return tree.children[node][0].board_state.selected_piece
+
+        reward = tree._simulate(node)
+        tree._backpropagate([node], reward)
+
         for i in range(MCTS_ITERATIONS):
             # if (i + 1) % (MCTS_ITERATIONS // 10) == 0 or i + 1 == MCTS_ITERATIONS:
             #     print(f"Progress: {((i + 1) / MCTS_ITERATIONS) * 100:.0f}%")
             tree.do_rollout(node)
 
         best_node = tree.choose(node)
+
+        if not best_node:
+            return random.choice(self.available_pieces)
+        
         return best_node.board_state.selected_piece
 
     def place_piece(self, selected_piece):
         tree = MCTS(debug=False)
-        node = Node(self.board, PLAYER, "place_piece", selected_piece, debug=tree.debug)
-        tree.do_rollout(node)
-        if node in tree.children and tree.children[node]:
-            # Check if any child is an immediate win
-            for child in tree.children[node]:
-                if child.board_state.player == PLAYER and child.board_state.check_win():
-                    for row in range(BOARD_ROWS):
-                        for col in range(BOARD_COLS):
-                            if child.board_state[row][col] == self.pieces.index(selected_piece) + 1:  # 실제 값으로 비교
-                                return row, col
+        board = Board(self.board, PLAYER, "place_piece", selected_piece, self.available_places, self.available_pieces, debug=False)
+        node = Node(board, debug=False)
+
+        for row, col in node.board_state.available_places:
+            if node.board_state.check_win_with_piece(selected_piece, row, col):
+                return row, col
+            else:
+                node.board_state[row][col] = 0
                             
         for i in range(MCTS_ITERATIONS):
             # if (i + 1) % (MCTS_ITERATIONS // 10) == 0 or i + 1 == MCTS_ITERATIONS:
             #     print(f"Progress: {((i + 1) / MCTS_ITERATIONS) * 100:.0f}%")
-
             tree.do_rollout(node)
 
         best_node = tree.choose(node)
+        if not best_node:
+            return random.choice(self.available_places)
+        
         for row in range(BOARD_ROWS):
             for col in range(BOARD_COLS):
                 if best_node.board_state[row][col] == self.pieces.index(selected_piece) + 1:  # 실제 값으로 비교
                     return row, col
     
+    def get_available_places(self):
+        available_places = []
+        for row in range(BOARD_ROWS):
+            for col in range(BOARD_COLS):
+                if self.board[row][col] == 0:
+                    available_places.append((row, col))
+        return available_places
+    
 class MCTS:
     "Monte Carlo tree searcher. First rollout the tree then choose a move."
-
     def __init__(self, exploration_weight=1, debug=False):
         self.Q = defaultdict(int)  # total reward of each node
         self.N = defaultdict(int)  # total visit count for each node
@@ -70,8 +106,15 @@ class MCTS:
 
     def choose(self, node):
         "Choose the best successor of node. (Choose a move in the game)"
-        if node.is_terminal():
-            raise RuntimeError(f"choose called on terminal node {node}")
+        if self.children[node] is None:
+            raise ValueError("Cannot choose from unexplored node")
+    
+        if self.children[node] == []:
+            if node.board_state.current_state == "select_piece":
+                return random.choice(node.board_state.available_pieces)
+            else:
+                return random.choice(node.board_state.available_places)
+            
 
         if node not in self.children:
             return node.find_random_child()
@@ -118,26 +161,30 @@ class MCTS:
     def _expand(self, node):
         if node in self.children:
             return  # already expanded
-        self.children[node] = node.find_children()
+        
+        deleted_nodes = 0
+        node_list = node.find_children()
+        self.children[node] = []
+        for currnet_node in node_list:
+            if currnet_node not in self.children.keys():
+                self.children[node].append(currnet_node)
+            else:
+                deleted_nodes += 1
 
     def _simulate(self, node):
         "Returns the reward for a random simulation (to completion) of `node`"
-        invert_reward = True
         depth = 1
         while True:
             if node.is_terminal():
-                reward = node.reward(depth)
-                return 1 - reward if invert_reward else reward
+                return node.reward(depth)
             node = node.find_random_child()
             depth += 1
-            invert_reward = not invert_reward
 
     def _backpropagate(self, path, reward):
         "Send the reward back up to the ancestors of the leaf"
         for node in reversed(path):
             self.N[node] += 1
             self.Q[node] += reward
-            reward = 1 - reward  # 1 for me is 0 for my enemy, and vice versa
 
     def _uct_select(self, node):
         "Select a child of node, balancing exploration & exploitation"
@@ -157,8 +204,8 @@ class MCTS:
 
 
 class Node():
-    def __init__(self, board_state, player, current_state, selected_piece = None, debug=False):
-        self.board_state = Board(board_state, player, current_state, selected_piece, debug)
+    def __init__(self, board, debug=False):
+        self.board_state = board
         self.children = []
         self.debug = debug
 
@@ -166,26 +213,17 @@ class Node():
         result = []
         # 플레이어 순서를 고려하여 자식 노드의 상태를 전환
         if self.board_state.current_state == "select_piece":
-            # select_piece 이후는 상대가 piece를 배치할 차례
-            for key, pieces in self.board_state.available_pieces.items():
-                next_board_state = copy.deepcopy(self.board_state)
-                next_board_state.select(next(iter(pieces)))
-                for node in result:
-                    if node.board_state == next_board_state:
-                        print(f"{node.board_state}\n\n{next_board_state}\n\n")
-                        continue
-                next_node = Node(next_board_state.get_board(), next_board_state.player, next_board_state.current_state, next_board_state.selected_piece, next_board_state.debug)
+            for piece in self.board_state.available_pieces:
+                next_board = copy.deepcopy(self.board_state)
+                next_board.select(piece)
+                next_node = Node(next_board, debug=self.debug)
                 result.append(next_node)
 
         elif self.board_state.current_state == "place_piece":
             for selected_place in self.board_state.available_places:
-                next_board_state = copy.deepcopy(self.board_state)
-                next_board_state.place(selected_place[0], selected_place[1])
-                for node in result:
-                    if node.board_state == next_board_state:
-                        print(f"{node.board_state}\n\n{next_board_state}\n\n")
-                        continue
-                next_node = Node(next_board_state.get_board(), next_board_state.player, next_board_state.current_state, next_board_state.selected_piece, next_board_state.debug)
+                next_board = copy.deepcopy(self.board_state)
+                next_board.place(selected_place[0], selected_place[1])
+                next_node = Node(next_board, debug=self.debug)
                 result.append(next_node)
         else:
             raise TypeError(f'current_state({self.self.board_state.current_state}) is invalid')
@@ -209,142 +247,177 @@ class Node():
         return str(self.board_state)
     
     def reward(self, depth):
+        copy_board = copy.deepcopy(self.board_state)
         "Assumes self is terminal node. 1=win, 0=loss, .5=tie, etc"
-        current_board = copy.deepcopy(self.board_state)
-
-        while not current_board.check_win() and not current_board.is_board_full():
-            # Randomly select a piece to give to the opponent
-            if current_board.current_state == "select_piece":
-                current_board.random_select()
-            
-            # Randomly place the piece on the board
-            elif current_board.current_state == "place_piece":
-                current_board.random_place()
-            
+        while not copy_board.is_board_full():
+            if copy_board.current_state == "select_piece":
+                copy_board.random_select()
+            elif copy_board.current_state == "place_piece":
+                row, col = copy_board.random_place()
+                copy_board.place(row, col)
+                if copy_board.check_win(row, col):
+                    return (copy_board.player == PLAYER) / depth
             else:
-                raise TypeError(f'current_state({current_board.current_state}) is invalid')
-        
-        if current_board.check_win():
-            return (current_board.player == PLAYER) / depth
-        else:
-            return 0.5
+                raise TypeError(f'current_state is not validate')
+
+        return 0.5
             
 class Board:
-    def __init__(self, board, player, current_state, selected_piece = None, debug=False):
-        self.__board = board
+    def __init__(self, board, player, current_state, selected_piece, available_places, available_pieces, debug=False):
+        if current_state == "select_piece" and selected_piece is not None:
+            raise ValueError("Selected piece is not None")
+        if current_state == "place_piece" and selected_piece is None:
+            raise ValueError("Selected piece is None")
+        
+        self.pieces = [(i, j, k, l) for i in range(2) for j in range(2) for k in range(2) for l in range(2)]  # All 16 pieces
+        self.__board = copy.deepcopy(board)
         self.player = player
         self.current_state = current_state
         self.selected_piece = selected_piece
+        self.available_places = copy.deepcopy(available_places)
+        self.available_pieces = copy.deepcopy(available_pieces)
+        if current_state == "place_piece" and selected_piece in self.available_pieces:
+            self.available_pieces.remove(selected_piece)
         self.debug = debug
-        self.pieces = [(i, j, k, l) for i in range(2) for j in range(2) for k in range(2) for l in range(2)]  # All 16 pieces
-        self.available_places = self.get_available_places()
-        self.available_pieces = self.get_available_pieces()
 
+    def get(self, x, y):
+        piece_idx = self.__board[x][y] - 1
+        if piece_idx == -1:
+            return None
+        else:
+            return self.pieces[piece_idx]
+    
+    def get_piece_idx(self, piece):
+        return self.pieces.index(piece) + 1
+    
     def is_board_full(self):
-        for row in range(BOARD_ROWS):
-            for col in range(BOARD_COLS):
-                if self.__board[row][col] == 0:
-                    return False
-        return True
+        return not self.available_places
 
-    def check_line(self, line):
-        if 0 in line:
-            return False  # Incomplete line
-        characteristics = np.array([self.pieces[piece_idx - 1] for piece_idx in line])
-        for i in range(4):  # Check each characteristic (I/E, N/S, T/F, P/J)
-            if len(set(characteristics[:, i])) == 1:  # All share the same characteristic
-                return True
-        return False
-
-    def check_2x2_subgrid_win(self):
-        for r in range(BOARD_ROWS - 1):
-            for c in range(BOARD_COLS - 1):
-                subgrid = [self.__board[r][c], self.__board[r][c+1], self.__board[r+1][c], self.__board[r+1][c+1]]
-                if 0 not in subgrid:  # All cells must be filled
-                    characteristics = [self.pieces[idx - 1] for idx in subgrid]
-                    for i in range(4):  # Check each characteristic (I/E, N/S, T/F, P/J)
-                        if len(set(char[i] for char in characteristics)) == 1:  # All share the same characteristic
-                            return True
-        return False
-
-    def check_win(self):
-        # Check rows, columns, and diagonals
-        for col in range(BOARD_COLS):
-            if self.check_line([self.__board[row][col] for row in range(BOARD_ROWS)]):
-                return True
-        
-        for row in range(BOARD_ROWS):
-            if self.check_line([self.__board[row][col] for col in range(BOARD_COLS)]):
-                return True
+    def check_win(self, x, y):
+        def check_equal_attributes(pieces):
+            if len(pieces) < 4:
+                return False
+            # 각 위치별 요소를 비교 (인덱스 0~3)
+            for i in range(4):
+                # 현재 인덱스의 모든 값이 같은지 확인
+                if all(piece[i] == pieces[0][i] for piece in pieces):
+                    return True
             
-        if self.check_line([self.__board[i][i] for i in range(BOARD_ROWS)]) or self.check_line([self.__board[i][BOARD_ROWS - i - 1] for i in range(BOARD_ROWS)]):
-            return True
+            # 어떤 요소도 모두 같지 않으면 False
+            return False
 
-        # Check 2x2 sub-grids
-        if self.check_2x2_subgrid_win():
+        # Check row
+        pieces = []
+        for j in range(BOARD_COLS):
+            piece = self.get(x, j)
+            if not piece:
+                break
+            else:
+                pieces.append(piece)
+        
+        if check_equal_attributes(pieces):
             return True
         
-        return False
-
-    def get_available_places(self):
-        available_places = []
-        for row in range(BOARD_ROWS):
-            for col in range(BOARD_COLS):
-                if self.__board[row][col] == 0:
-                    available_places.append((row, col))
-        return available_places
-
-    def get_available_pieces(self):
-        all_pieces = set(range(1, 17))  # 1부터 16까지의 전체 인덱스
-        if self.selected_piece is not None:
-            all_pieces.remove(self.pieces.index(self.selected_piece) + 1)
-        used_pieces = set()
-
-        for row in range(BOARD_ROWS):
-            for col in range(BOARD_COLS):
-                num = self.__board[row][col]
-                if num != 0:
-                    used_pieces.add(num)
-                    all_pieces.remove(num)
-
-        grouped_pieces = defaultdict(set)
+        # Check column
+        pieces = []
+        for i in range(BOARD_ROWS):
+            piece = self.get(i, y)
+            if not piece:
+                break
+            else:
+                pieces.append(piece)
         
-        for piece1 in all_pieces:
-            difference_counts = []
-            for piece2 in used_pieces:
-                difference_counts.append(sum(1 for a, b in zip(self.pieces[piece1 - 1], self.pieces[piece2 - 1]) if a != b))
-            
-            sorted_differences = sorted(difference_counts)
+        if check_equal_attributes(pieces):
+            return True
 
-            grouped_pieces[tuple(sorted_differences)].add(self.pieces[piece1 - 1])
-        # print(grouped_pieces)
-        return grouped_pieces
+        # Check main diagonal (top-left to bottom-right)
+        if x == y:  # Only check if the piece is on the diagonal
+            pieces = []
+            for i in range(BOARD_ROWS):
+                piece = self.get(i, i)
+                if not piece:
+                    break
+                else:
+                    pieces.append(piece)
+            
+            if check_equal_attributes(pieces):
+                return True
+
+        # Check anti-diagonal (top-right to bottom-left)
+        if x + y == BOARD_ROWS - 1:  # Only check if the piece is on the diagonal
+            pieces = []
+            for i in range(BOARD_ROWS):
+                piece = self.get(i, BOARD_ROWS - 1 - i)
+                if not piece:
+                    break
+                else:
+                    pieces.append(piece)
+            
+            if check_equal_attributes(pieces):
+                return True
+
+        # Check 2x2 groups
+        for i in range(max(0, x - 1), min(BOARD_ROWS - 2, x) + 1):
+            for j in range(max(0, y - 1), min(BOARD_COLS - 2, y) + 1):
+                pieces = [
+                    self.get(i, j), self.get(i, j + 1),
+                    self.get(i + 1, j), self.get(i + 1, j + 1)
+                ]
+
+                if None not in pieces and check_equal_attributes(pieces):
+                    return True
+
+        return False
+    
+    def check_win_with_piece(self, piece, x, y):
+        # Place the piece temporarily
+        if piece not in self.pieces:
+            raise ValueError(f"Piece {piece} is not available")
+        self.__board[x][y] = self.get_piece_idx(piece)
+        flag = self.check_win(x, y)
+        self.__board[x][y] = 0
+        return flag
     
     def get_board(self):
         return self.__board
-    
-    def __getitem__(self, index):
-        # Delegate subscript access to __board
-        return self.__board[index]
     
     def __str__(self):
         # Convert the board into a readable string
         if self.current_state == "place_piece":
             return f"\nPlayer: {self.player}, Selected_piece: {self.selected_piece}\n"
         else:
-            board_str = '\n'.join(' '.join(map(str, row)) for row in self.__board)
-            return f"\nPlayer: {self.player}, Board:\n{board_str}\n"
+            board_str = ''
+            for row in range(BOARD_ROWS):
+                for col in range(BOARD_COLS):
+                    piece = self.get(row, col)
+                    if piece is None:
+                        piece_text = '....'
+                    else:
+                        piece_text = f"{'I' if piece[0] == 0 else 'E'}{'N' if piece[1] == 0 else 'S'}{'T' if piece[2] == 0 else 'F'}{'P' if piece[3] == 0 else 'J'}"
+                    board_str += f"{piece_text} "
+                board_str += '\n'
+            return f"\nPlayer: {self.player}, Current_state: {self.current_state}, Selected_piece: {self.selected_piece}\n{board_str}\n"
+        
+    def __getitem__(self, index):
+        return self.__board[index]
+
     
     def random_select(self):
         if self.current_state != "select_piece":
             raise TypeError(f"Now is {self.current_state} state")
-        
-        # Select a random available place
-        random_key = random.choice(list(self.available_pieces.keys()))
 
-        selected_piece = random.choice(list(self.available_pieces[random_key]))
+        selected_piece = random.choice(self.available_pieces)
 
         self.select(selected_piece)
+
+    def select(self, piece):
+        if piece not in self.available_pieces:
+            raise ValueError(f"The selected piece {piece} is not available")
+
+        self.current_state = "place_piece"
+        self.player = -self.player
+        self.selected_piece = piece
+        self.available_pieces.remove(piece)
     
     def random_place(self):
         if self.current_state != "place_piece":
@@ -352,50 +425,34 @@ class Board:
         
         # Place a random available piece
         selected_place = random.choice(self.available_places)
-        
-        self.place(selected_place[0], selected_place[1])
+        return selected_place[0], selected_place[1]
     
     def place(self, row, col):
+        if self.current_state != "place_piece":
+            raise TypeError("Now is select_piece state")
         self.current_state = "select_piece"
         self.player = self.player
         self.__board[row][col] = self.pieces.index(self.selected_piece) + 1
         self.available_places.remove((row, col))
         self.selected_piece = None
 
-    def select(self, piece):
-        if not any(piece in s for s in self.available_pieces.values()):
-            raise ValueError(f"The selected piece {piece} is not available")
-
-        self.current_state = "place_piece"
-        self.player = -self.player
-        self.selected_piece = piece
-
-        for key in list(self.available_pieces.keys()):  # 키 목록을 복사
-            if piece in self.available_pieces[key]:
-                self.available_pieces[key].remove(piece)
-                if not self.available_pieces[key]:  # 값이 비었다면 키 삭제
-                    del self.available_pieces[key]
-
     def board_to_string(self):
         return ','.join(map(str, sum(self.board_state._board, [])))
     
     def __hash__(self):
-        return hash(self.__board.tobytes()) ^ hash(self.player) ^ hash(self.current_state) ^ hash(self.selected_piece)
+        return hash(self.__board.tobytes()) ^ hash(self.selected_piece)
 
     def __eq__(self, other):
         # Equality check for hash compatibility
         if not isinstance(other, Board):
             return False
-        
-        if self.available_pieces.keys() != other.available_pieces.keys():
-            return False
-        
-        for key in self.available_pieces.keys():
-            if self.available_pieces[key] != other.available_pieces[key]:
-                return False
-            
+
         return (
-            self.player == other.player and
-            self.current_state == other.current_state and
+            all(
+                self.__board[row][col] == other.__board[row][col]
+                for row in range(BOARD_ROWS)
+                for col in range(BOARD_COLS)
+            ) and
             self.selected_piece == other.selected_piece 
         )
+    
