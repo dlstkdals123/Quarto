@@ -3,9 +3,16 @@ import numpy as np
 import os
 from datetime import datetime
 
-from machines_p1 import P1
-from machines_p2 import P2
+import machines_p1
+import machines_p2
 import time
+
+ITERATION = 100
+P1 = machines_p1.P1
+P2 = machines_p2.P2
+P1_MCTS_ITERATIONS = machines_p1.MCTS_ITERATIONS
+P2_MCTS_ITERATIONS = machines_p2.MCTS_ITERATIONS
+
 
 players = {
     1: P1,
@@ -96,8 +103,6 @@ def second2hhmmss(seconds):
 # Game loop
 turn = 1
 
-ITERATION = 10
-
 results = {"P1": {"wins": 0, "draws": 0, "loses": 0, "timeouts": 0, "total_time": 0},
            "P2": {"wins": 0, "draws": 0, "loses": 0, "timeouts": 0, "total_time": 0}}
 
@@ -169,19 +174,38 @@ LOG_FILENAME = os.path.join(LOG_DIR, f"log_{datetime.now().strftime('%m%d_%H%M%S
 os.makedirs(LOG_DIR, exist_ok=True)
 
 with open(LOG_FILENAME, "w") as log_file:
-# 종합 통계
-    summary_lines = [f"Summary:\nTotal_Iteration: {ITERATION}\nMCTS_ITERATIONS: P1=(write this), P2=(write this)\n"]  # Summary 제목 추가
-    for player in ["P1", "P2"]:
-        total_games = ITERATION
-        wins = results[player]["wins"]
-        draws = results[player]["draws"]
-        loses = results[player]["loses"]
-        timeouts = results[player]["timeouts"]
-        total_time = results[player]["total_time"]
-        avg_time = total_time / total_games if total_games > 0 else 0
-        win_rate = (wins / total_games) * 100
+    # Write the overall summary header
+    summary_lines = [
+        "Detailed Summary of Results:\n",
+        f"Total Iterations: {ITERATION}\n",
+        f"MCTS Iterations:\n",
+        f"    P1: {P1_MCTS_ITERATIONS} iterations per move (Monte Carlo Tree Search for Player 1)\n",
+        f"    P2: {P2_MCTS_ITERATIONS} iterations per move (Monte Carlo Tree Search for Player 2)\n",
+        "-" * 50 + "\n"
+    ]
+    
+    # Iterate over the players in the results dictionary
+    for player, stats in results.items():
+        # Fetch statistics for the player
+        wins = stats["wins"]
+        draws = stats["draws"]
+        loses = stats["loses"]
+        timeouts = stats["timeouts"]
+        total_time = stats["total_time"]
+        
+        # Calculate derived statistics
+        avg_time = total_time / ITERATION if ITERATION > 0 else 0
+        win_rate = (wins / ITERATION) * 100 if ITERATION > 0 else 0
+        
+        # Append detailed stats for the player
         summary_lines.append(
-            f"{player}: [{wins}, {draws}, {loses}({timeouts})] {win_rate:.1f}% {avg_time:.1f}s\n"
+            f"Player: {player}\n"
+            f"    Wins: {wins}\n"
+            f"    Draws: {draws}\n"
+            f"    Losses: {loses} (Timeouts: {timeouts})\n"
+            f"    Win Rate: {win_rate:.2f}%\n"
+            f"    Average Time Per Game: {avg_time:.2f} seconds\n\n"
         )
-
+    
+    # Write the summary lines to the log file
     log_file.writelines(summary_lines)

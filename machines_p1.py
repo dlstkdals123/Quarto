@@ -27,26 +27,26 @@ class P1():
         board = Board(self.board, PLAYER, "select_piece", None, self.available_places, self.available_pieces, debug=False)
         node = Node(board, debug=False)
         
-        print("--------------------------------")
         tree.children[node] = []
         for piece in board.available_pieces:
-            piece_text = f"{'I' if piece[0] == 0 else 'E'}{'N' if piece[1] == 0 else 'S'}{'T' if piece[2] == 0 else 'F'}{'P' if piece[3] == 0 else 'J'}"
-
             is_opponent_win = False
-            print(f"{piece_text} is checking now...", end = ' ')
             for row, col in self.available_places:
                 if board.check_win_with_piece(piece, row, col):
                     is_opponent_win = True
                     break
             
             if not is_opponent_win:
-                print("Can")
                 next_board = copy.deepcopy(board)
                 next_board.select(piece)
                 next_node = Node(next_board, debug=board.debug)
                 tree.children[node].append(next_node)
-            else:
-                print("Cant")
+
+        if not tree.children[node]: # lose
+            return random.choice(self.available_pieces)
+        
+        if len(tree.children[node]) == 1: #only one piece
+            return tree.children[node][0].board_state.selected_piece
+
         reward = tree._simulate(node)
         tree._backpropagate([node], reward)
 
@@ -76,7 +76,6 @@ class P1():
         for i in range(MCTS_ITERATIONS):
             # if (i + 1) % (MCTS_ITERATIONS // 10) == 0 or i + 1 == MCTS_ITERATIONS:
             #     print(f"Progress: {((i + 1) / MCTS_ITERATIONS) * 100:.0f}%")
-
             tree.do_rollout(node)
 
         best_node = tree.choose(node)
@@ -174,22 +173,18 @@ class MCTS:
 
     def _simulate(self, node):
         "Returns the reward for a random simulation (to completion) of `node`"
-        invert_reward = True
         depth = 1
         while True:
             if node.is_terminal():
-                reward = node.reward(depth)
-                return 1 - reward if invert_reward else reward
+                return node.reward(depth)
             node = node.find_random_child()
             depth += 1
-            invert_reward = not invert_reward
 
     def _backpropagate(self, path, reward):
         "Send the reward back up to the ancestors of the leaf"
         for node in reversed(path):
             self.N[node] += 1
             self.Q[node] += reward
-            reward = 1 - reward  # 1 for me is 0 for my enemy, and vice versa
 
     def _uct_select(self, node):
         "Select a child of node, balancing exploration & exploitation"
@@ -299,73 +294,85 @@ class Board:
         return not self.available_places
 
     def check_win(self, x, y):
-        # Helper function to process pieces and update attributes
-        def update_attributes(piece, attributes):
-            if not piece:
-                return False  # Stop processing if the piece is missing
-            attributes[0] &= piece[0]
-            attributes[1] &= piece[1]
-            attributes[2] &= piece[2]
-            attributes[3] &= piece[3]
-            return True
+        def check_equal_attributes(pieces):
+            if len(pieces) < 4:
+                return False
+            # 각 위치별 요소를 비교 (인덱스 0~3)
+            for i in range(4):
+                # 현재 인덱스의 모든 값이 같은지 확인
+                if all(piece[i] == pieces[0][i] for piece in pieces):
+                    return True
+            
+            # 어떤 요소도 모두 같지 않으면 False
+            return False
 
         # Check row
-        attributes = [True, True, True, True]
+        pieces = []
         for j in range(BOARD_COLS):
-            if not update_attributes(self.get(x, j), attributes):
-                attributes = [False]
+            piece = self.get(x, j)
+            if not piece:
                 break
-        if any(attributes):
+            else:
+                pieces.append(piece)
+        
+        if check_equal_attributes(pieces):
             return True
         
         # Check column
-        attributes = [True, True, True, True]
+        pieces = []
         for i in range(BOARD_ROWS):
-            if not update_attributes(self.get(i, y), attributes):
-                attributes = [False]
+            piece = self.get(i, y)
+            if not piece:
                 break
-        if any(attributes):
+            else:
+                pieces.append(piece)
+        
+        if check_equal_attributes(pieces):
             return True
 
         # Check main diagonal (top-left to bottom-right)
-        attributes = [True, True, True, True]
         if x == y:  # Only check if the piece is on the diagonal
+            pieces = []
             for i in range(BOARD_ROWS):
-                if not update_attributes(self.get(i, i), attributes):
-                    attributes = [False]
+                piece = self.get(i, i)
+                if not piece:
                     break
-            if any(attributes):
+                else:
+                    pieces.append(piece)
+            
+            if check_equal_attributes(pieces):
                 return True
 
         # Check anti-diagonal (top-right to bottom-left)
-        attributes = [True, True, True, True]
-        if x + y == BOARD_COLS - 1:  # Only check if the piece is on the anti-diagonal
+        if x + y == BOARD_ROWS - 1:  # Only check if the piece is on the diagonal
+            pieces = []
             for i in range(BOARD_ROWS):
-                if not update_attributes(self.get(i, BOARD_COLS - 1 - i), attributes):
-                    attributes = [False]
+                piece = self.get(i, BOARD_ROWS - 1 - i)
+                if not piece:
                     break
-            if any(attributes):
+                else:
+                    pieces.append(piece)
+            
+            if check_equal_attributes(pieces):
                 return True
 
         # Check 2x2 groups
         for i in range(max(0, x - 1), min(BOARD_ROWS - 2, x) + 1):
             for j in range(max(0, y - 1), min(BOARD_COLS - 2, y) + 1):
-                attributes = [True, True, True, True]
-                group = [
+                pieces = [
                     self.get(i, j), self.get(i, j + 1),
                     self.get(i + 1, j), self.get(i + 1, j + 1)
                 ]
-                for piece in group:
-                    if not update_attributes(piece, attributes):
-                        attributes = [False]
-                        break
-                if any(attributes):
+
+                if None not in pieces and check_equal_attributes(pieces):
                     return True
 
         return False
     
     def check_win_with_piece(self, piece, x, y):
         # Place the piece temporarily
+        if piece not in self.pieces:
+            raise ValueError(f"Piece {piece} is not available")
         self.__board[x][y] = self.get_piece_idx(piece)
         flag = self.check_win(x, y)
         self.__board[x][y] = 0
