@@ -1,5 +1,0 @@
-Summary:
-Total_Iteration: 100
-MCTS_ITERATIONS: P1=(1000), P2=(100)
-P1: [50, 0, 50(0)] 50.0% 29.3s
-P2: [50, 0, 50(0)] 50.0% 3.4s
