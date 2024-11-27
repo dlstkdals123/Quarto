@@ -6,11 +6,11 @@ import math
 import copy
 
 MCTS_ITERATIONS = 500
+SWITCH_POINT = 8
 BOARD_ROWS = 4
 BOARD_COLS = 4
 PLAYER = 1
-isFirst = True
-
+isFirst = False
 
 class P1():
     def __init__(self, board, available_pieces):
@@ -21,7 +21,7 @@ class P1():
 
     def reset_cache(self):
         """Minimax 캐시 초기화"""
-        self.cache.clear()    
+        self.cache.clear()
     
     def select_piece(self):
         global isFirst
