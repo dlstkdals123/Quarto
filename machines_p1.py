@@ -17,76 +17,122 @@ class P1():
         self.board = board # Include piece indices. 0:empty / 1~16:piece
         self.available_pieces = available_pieces # Currently available pieces in a tuple type (e.g. (1, 0, 1, 0))
         self.available_places = self.get_available_places()
-    
+        self.cache = {}  # Minimax용 캐시
+
+    def reset_cache(self):
+        """Minimax 캐시 초기화"""
+        self.cache.clear()
+
     def select_piece(self):
         global isFirst
+
         if isFirst:
             isFirst = False
             return random.choice(self.pieces)
-        tree = MCTS(debug=False)
-        board = Board(self.board, PLAYER, "select_piece", None, self.available_places, self.available_pieces, debug=False)
-        node = Node(board, debug=False)
         
-        tree.children[node] = []
-        for piece in board.available_pieces:
-            is_opponent_win = False
-            for row, col in self.available_places:
-                if board.check_win_with_piece(piece, row, col):
-                    is_opponent_win = True
-                    break
+        empty_cells = sum(1 for row in self.board for col in row if col == 0)
+
+        if empty_cells > 10:
+        # MCTS 기반 탐색
+            tree = MCTS(debug=False)
+            board = Board(self.board, PLAYER, "select_piece", None, self.available_places, self.available_pieces, debug=False)
+            node = Node(board, debug=False)
+        
+            tree.children[node] = []
+            for piece in board.available_pieces:
+                is_opponent_win = False
+                for row, col in self.available_places:
+                    if board.check_win_with_piece(piece, row, col):
+                        is_opponent_win = True
+                        break
             
-            if not is_opponent_win:
-                next_board = copy.deepcopy(board)
-                next_board.select(piece)
-                next_node = Node(next_board, debug=board.debug)
-                tree.children[node].append(next_node)
+                if not is_opponent_win:
+                    next_board = copy.deepcopy(board)
+                    next_board.select(piece)
+                    next_node = Node(next_board, debug=board.debug)
+                    tree.children[node].append(next_node)
 
-        if not tree.children[node]: # lose
-            return random.choice(self.available_pieces)
+            if not tree.children[node]: # lose
+                return random.choice(self.available_pieces)
         
-        if len(tree.children[node]) == 1: #only one piece
-            return tree.children[node][0].board_state.selected_piece
+            if len(tree.children[node]) == 1: #only one piece
+                return tree.children[node][0].board_state.selected_piece
 
-        reward = tree._simulate(node)
-        tree._backpropagate([node], reward)
+            reward = tree._simulate(node)
+            tree._backpropagate([node], reward)
 
-        for i in range(MCTS_ITERATIONS):
-            # if (i + 1) % (MCTS_ITERATIONS // 10) == 0 or i + 1 == MCTS_ITERATIONS:
-            #     print(f"Progress: {((i + 1) / MCTS_ITERATIONS) * 100:.0f}%")
-            tree.do_rollout(node)
+            for i in range(MCTS_ITERATIONS):
+                # if (i + 1) % (MCTS_ITERATIONS // 10) == 0 or i + 1 == MCTS_ITERATIONS:
+                #     print(f"Progress: {((i + 1) / MCTS_ITERATIONS) * 100:.0f}%")
+                tree.do_rollout(node)
 
-        best_node = tree.choose(node)
+            best_node = tree.choose(node)
 
-        if not best_node:
-            return random.choice(self.available_pieces)
+            if not best_node:
+                return random.choice(self.available_pieces)
         
-        return best_node.board_state.selected_piece
+            return best_node.board_state.selected_piece
+        else:
+            # Minimax 기반 탐색
+            best_piece = None
+            best_score = -float('inf')
+
+
+            for piece in self.available_pieces:
+                score = self.evaluate_future(self.board, piece)
+                if score > best_score:
+                    best_score = score
+                    best_piece = piece
+
+            return best_piece
 
     def place_piece(self, selected_piece):
-        tree = MCTS(debug=False)
-        board = Board(self.board, PLAYER, "place_piece", selected_piece, self.available_places, self.available_pieces, debug=False)
-        node = Node(board, debug=False)
+        empty_cells = sum(1 for row in self.board for col in row if col == 0)
 
-        for row, col in node.board_state.available_places:
-            if node.board_state.check_win_with_piece(selected_piece, row, col):
-                return row, col
-            else:
-                node.board_state[row][col] = 0
-                            
-        for i in range(MCTS_ITERATIONS):
-            # if (i + 1) % (MCTS_ITERATIONS // 10) == 0 or i + 1 == MCTS_ITERATIONS:
-            #     print(f"Progress: {((i + 1) / MCTS_ITERATIONS) * 100:.0f}%")
-            tree.do_rollout(node)
+        if empty_cells > 10:
+            # MCTS 기반 탐색
+            tree = MCTS(debug=False)
+            board = Board(self.board, PLAYER, "place_piece", selected_piece, self.available_places, self.available_pieces, debug=False)
+            node = Node(board, debug=False)
 
-        best_node = tree.choose(node)
-        if not best_node:
-            return random.choice(self.available_places)
-        
-        for row in range(BOARD_ROWS):
-            for col in range(BOARD_COLS):
-                if best_node.board_state[row][col] == self.pieces.index(selected_piece) + 1:  # 실제 값으로 비교
+            for row, col in node.board_state.available_places:
+                if node.board_state.check_win_with_piece(selected_piece, row, col):
                     return row, col
-    
+                else:
+                    node.board_state[row][col] = 0
+                            
+            for i in range(MCTS_ITERATIONS):
+                # if (i + 1) % (MCTS_ITERATIONS // 10) == 0 or i + 1 == MCTS_ITERATIONS:
+                #     print(f"Progress: {((i + 1) / MCTS_ITERATIONS) * 100:.0f}%")
+                tree.do_rollout(node)
+
+            best_node = tree.choose(node)
+            if not best_node:
+                return random.choice(self.available_places)
+        
+            for row in range(BOARD_ROWS):
+                for col in range(BOARD_COLS):
+                    if best_node.board_state[row][col] == self.pieces.index(selected_piece) + 1:  # 실제 값으로 비교
+                        return row, col
+
+        else:
+            # Minimax 기반 탐색
+            best_move = None
+            best_score = -float('inf')
+            alpha = -float('inf')
+            beta = float('inf')
+
+            available_locs = [(row, col) for row in range(4) for col in range(4) if self.board[row][col] == 0]
+            for row, col in available_locs:
+                self.board[row][col] = self.pieces.index(selected_piece) + 1
+                score = self.minimax(self.board, self.available_pieces, is_maximizing=False, alpha=alpha, beta=beta)
+                self.board[row][col] = 0
+                if score > best_score:
+                    best_score = score
+                    best_move = (row, col)
+
+            return best_move
+
     def get_available_places(self):
         available_places = []
         for row in range(BOARD_ROWS):
@@ -95,6 +141,148 @@ class P1():
                     available_places.append((row, col))
         return available_places
     
+    def minimax(self, board, available_pieces, is_maximizing, alpha, beta):
+        # 캐싱: 동일 상태 재계산 방지
+        board_tuple = tuple(map(tuple, board))
+        if board_tuple in self.cache:
+            return self.cache[board_tuple]
+
+        # 종료 조건: 승리, 패배, 무승부
+        if self.minimax_check_win(board):
+            return 1e9 if is_maximizing else -1e9
+        if all(board[row][col] != 0 for row in range(BOARD_ROWS) for col in range(BOARD_COLS)):
+            return 0  # 무승부
+
+        # 최대화 플레이어의 턴
+        if is_maximizing:
+            max_eval = -float('inf')
+            available_locs = [(row, col) for row in range(BOARD_ROWS) for col in range(BOARD_COLS) if board[row][col] == 0]
+
+            for row, col in available_locs:
+                board[row][col] = 1  # 임시로 말을 놓음
+                eval = self.minimax(board, available_pieces, False, alpha, beta)
+                board[row][col] = 0  # 복구
+                max_eval = max(max_eval, eval)
+                alpha = max(alpha, eval)
+                if beta <= alpha:  # 알파-베타 가지치기
+                    break
+
+            self.cache[board_tuple] = max_eval
+            return max_eval
+
+        else:
+            min_eval = float('inf')
+
+            for piece in available_pieces:
+                eval = self.minimax(board, available_pieces, True, alpha, beta)
+                min_eval = min(min_eval, eval)
+                beta = min(beta, eval)
+                if beta <= alpha:  # 알파-베타 가지치기
+                    break
+
+            self.cache[board_tuple] = min_eval
+            return min_eval
+
+    def evaluate_future(self, board, piece):
+        score = 0
+        for row in range(4):
+            for col in range(4):
+                if board[row][col] == 0:
+                    board[row][col] = self.pieces.index(piece) + 1
+                    if self.minimax_check_win(board):
+                        score += 1
+                    board[row][col] = 0
+        return score
+
+    def evaluate_board(self, board):
+        score = 0
+        # 각 행, 열, 대각선을 평가
+        for row in range(4):
+            score += self.evaluate_line([board[row][col] for col in range(4)])
+        for col in range(4):
+            score += self.evaluate_line([board[row][col] for row in range(4)])
+        score += self.evaluate_line([board[i][i] for i in range(4)])
+        score += self.evaluate_line([board[i][3 - i] for i in range(4)])
+
+        # 2x2 평가
+        score += self.evaluate_2x2_subgrids(board)
+
+        return score
+    
+    def evaluate_line(self, line):
+        """한 줄(행, 열, 대각선)을 평가"""
+        if 0 in line:  # 빈 칸이 있으면 평가하지 않음
+            return 0
+        # 각 특성을 확인하여 동일한 특성이 몇 개 일치하는지 계산
+        characteristics = [self.pieces[piece_idx - 1] for piece_idx in line if piece_idx != 0]
+        shared_attributes = sum(len(set(attr)) == 1 for attr in zip(*characteristics))
+        return shared_attributes * 10  # 각 특성 일치마다 10점 부여
+    
+    def minimax_check_win(self, board):
+        """승리 조건이 충족되었는지 확인"""
+        # 가로, 세로, 대각선 체크
+        for row in range(4):
+            if self.evaluate_line([board[row][col] for col in range(4)]) == 40:
+                return True
+        for col in range(4):
+            if self.evaluate_line([board[row][col] for row in range(4)]) == 40:
+                return True
+        if self.evaluate_line([board[i][i] for i in range(4)]) == 40:
+            return True
+        if self.evaluate_line([board[i][3 - i] for i in range(4)]) == 40:
+            return True
+
+        # 2x2 승리 조건 체크
+        if self.check_2x2_subgrid_win(board):
+            return True
+        
+        return False
+    
+    def check_2x2_subgrid_win(self, board):
+        """2x2에서 승리 조건을 확인 (40점)"""
+        for row in range(3):
+            for col in range(3):
+                subgrid = [
+                    board[row][col], board[row][col + 1],
+                    board[row + 1][col], board[row + 1][col + 1]
+                ]
+                if 0 not in subgrid:  # 모든 칸이 채워졌다면
+                    subgrid_pieces = [self.pieces[idx - 1] for idx in subgrid]
+                    total_score = 0
+                    for i in range(4):  # 각 특성에 대해 일치하는지 확인
+                        if len(set(attr[i] for attr in subgrid_pieces)) == 1:
+                            total_score += 10  # 각 일치 특성에 대해 10점 추가
+
+                    # 만약 4개 특성이 모두 일치하면 40점이 되어 승리
+                    if total_score == 40:
+                        return True
+        return False
+
+    def evaluate_2x2_subgrids(self, board):
+        """2x2에서 특성 일치 평가"""
+        score = 0
+        for row in range(3):  # 2x2 영역을 찾아서
+            for col in range(3):
+                subgrid = [
+                    board[row][col], board[row][col + 1],
+                    board[row + 1][col], board[row + 1][col + 1]
+                ]
+                if 0 not in subgrid:  # 모든 칸이 채워졌다면
+                    subgrid_pieces = [self.pieces[idx - 1] for idx in subgrid]
+                    total_score = 0
+                    for i in range(4):  # 각 특성에 대해 일치하는지 확인
+                        if len(set(attr[i] for attr in subgrid_pieces)) == 1:
+                            total_score += 10  # 각 일치 특성에 대해 10점 추가
+
+                    # 만약 4개 특성이 모두 일치하면 40점이 되어 승리
+                    if total_score == 40:
+                        score += 40  # 2x2 승리하면 40점 추가
+        return score
+
+    def is_full(self, board):
+        """보드가 가득 찼는지 확인"""
+        return all(board[row][col] != 0 for row in range(4) for col in range(4))
+ 
 class MCTS:
     "Monte Carlo tree searcher. First rollout the tree then choose a move."
     def __init__(self, exploration_weight=1, debug=False):
