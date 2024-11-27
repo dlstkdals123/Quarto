@@ -5,6 +5,7 @@ import math
 import copy
 
 MCTS_ITERATIONS = 500
+SWITCH_POINT = 8
 BOARD_ROWS = 4
 BOARD_COLS = 4
 
@@ -32,7 +33,7 @@ class P1():
         
         empty_cells = sum(1 for row in self.board for col in row if col == 0)
 
-        if empty_cells > 10:
+        if empty_cells > SWITCH_POINT:
         # MCTS 기반 탐색
             tree = MCTS(debug=False)
             board = Board(self.board, PLAYER, "select_piece", None, self.available_places, self.available_pieces, debug=False)
@@ -89,7 +90,7 @@ class P1():
     def place_piece(self, selected_piece):
         empty_cells = sum(1 for row in self.board for col in row if col == 0)
 
-        if empty_cells > 10:
+        if empty_cells > SWITCH_POINT:
             # MCTS 기반 탐색
             tree = MCTS(debug=False)
             board = Board(self.board, PLAYER, "place_piece", selected_piece, self.available_places, self.available_pieces, debug=False)
