@@ -1,0 +1,20 @@
+Detailed Summary of Results:
+Total Iterations: 100
+MCTS Iterations:
+    P1: 500 iterations per move (Monte Carlo Tree Search for Player 1)
+    P2: 500 iterations per move (Monte Carlo Tree Search for Player 2)
+--------------------------------------------------
+Player: P1
+    Wins: 25
+    Draws: 0
+    Losses: 75 (Timeouts: 0)
+    Win Rate: 25.00%
+    Average Time Per Game: 9.07 seconds
+
+Player: P2
+    Wins: 75
+    Draws: 0
+    Losses: 25 (Timeouts: 0)
+    Win Rate: 75.00%
+    Average Time Per Game: 8.92 seconds
+
