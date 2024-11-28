@@ -8,7 +8,6 @@
 ### Issue
 생각나는 이슈가 있다면 적어주시고, 카톡으로 남겨주시면 의견 나눠봅시다.
 
-- 현재 보드에 놓인 말의 개수에 따라 MCTS에서 Minimax로 알고리즘 변경
 - MCTS 중 Simulation 설정(현재는 완전 랜덤)
 - Iteration 배열
 - (최적화: 보드 대칭 및 회전)
@@ -20,6 +19,7 @@
 - ~~MCTS 중 Select가 이상함~~
 - ~~Simulation Main 만들어서 승률 분석~~
 - ~~P2인 경우 첫 시작은 MCTS을 하지 않고 랜덤하게 선택~~
+- ~~현재 보드에 놓인 말의 개수에 따라 MCTS에서 Minimax로 알고리즘 변경~~
 
 # Github 협업 가이드
 ## 1. Issue 생성
