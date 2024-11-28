@@ -179,24 +179,6 @@ total_time_consumption = {
 draw_lines()
 draw_available_pieces()
 
-board = np.array([
-    [11, 4, 1, 0],
-    [0, 15, 5, 2],
-    [9, 0, 14, 3],
-    [0, 0, 0, 0]
-])
-
-available_pieces = []
-idx = [6, 7, 8, 10, 12, 13, 16]
-for num in idx:
-    num -= 1
-    available_pieces.append(pieces[num])
-
-turn = 2
-flag = "select_piece"
-game_over = False
-selected_piece = None
-
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
