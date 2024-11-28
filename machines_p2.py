@@ -9,7 +9,7 @@ SWITCH_POINT = 0 # 0은 Minimax가 없는 경우입니다.
 BOARD_ROWS = 4
 BOARD_COLS = 4
 
-PLAYER = 1
+PLAYER = 2
 isFirst = True # P2인 경우 True로 바꿔주세요.
 
 class P2():
@@ -23,7 +23,10 @@ class P2():
         global isFirst
         if isFirst:
             isFirst = False
-            return random.choice(self.pieces)
+            random_piece = random.choice(self.pieces)
+            if random_piece not in self.available_pieces:
+                raise TypeError(f"{random_piece}")
+            return random_piece
         tree = MCTS(debug=False)
         board = Board(self.board, PLAYER, "select_piece", None, self.available_places, self.available_pieces, debug=False)
         node = Node(board, debug=False)

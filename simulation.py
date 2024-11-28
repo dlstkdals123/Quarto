@@ -8,6 +8,7 @@ import machines_p2
 import time
 
 ITERATION = 100
+FIRST_TURN = 1
 P1 = machines_p11.P1
 P2 = machines_p2.P2
 P1_MCTS_ITERATIONS = machines_p11.MCTS_ITERATIONS
@@ -32,6 +33,8 @@ available_pieces = pieces[:]
 
 # Global variable for selected piece
 selected_piece = None
+
+turn = 1
 
 def available_square(row, col):
     return board[row][col] == 0
@@ -83,10 +86,19 @@ def check_win():
     return False
 
 def restart_game():
-    global board, available_pieces, selected_piece, player
+    global board, available_pieces, selected_piece, player, turn, FIRST_TURN
     board = np.zeros((BOARD_ROWS, BOARD_COLS), dtype=int)
     available_pieces = pieces[:]
     selected_piece = None  # Reset selected piece
+    turn = FIRST_TURN
+    FIRST_TURN = 3 - FIRST_TURN
+
+    if turn == 1:
+        machines_p2.isFirst = True
+    else:
+        machines_p2.isFirst = False
+
+
 
 def second2hhmmss(seconds):
     if seconds >= 3600:
@@ -100,9 +112,6 @@ def second2hhmmss(seconds):
         return f"{mm:.0f}m {ss:.1f}s"
     else:
         return f"{seconds:.1f}s"
-
-# Game loop
-turn = 1
 
 # results 초기화
 results = {
@@ -134,10 +143,9 @@ for iteration in range(1, ITERATION + 1):
             begin = time.time()
             player = players[3 - turn](board=board, available_pieces=available_pieces)
             selected_piece = player.select_piece()
-            for row in range(BOARD_ROWS):
-                for col in range(BOARD_COLS):
-                    if board[row][col] == pieces.index(selected_piece) + 1:
-                        raise TypeError(f"P{3 - turn}; wrong selection")
+            if selected_piece not in available_pieces:
+                raise TypeError(f"P{3 - turn}; wrong selection")
+            
             finish = time.time()
             elapsed_time = finish - begin
             total_time_consumption[3 - turn] += elapsed_time
