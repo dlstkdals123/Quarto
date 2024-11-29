@@ -4,7 +4,7 @@ from collections import defaultdict
 import math
 import copy
 
-MCTS_ITERATIONS = 50
+MCTS_ITERATIONS = 500
 SWITCH_POINT = 0 # 0은 Minimax가 없는 경우입니다.
 BOARD_ROWS = 4
 BOARD_COLS = 4

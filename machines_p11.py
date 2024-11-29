@@ -36,12 +36,11 @@ class P1():
         
         if len(self.available_pieces) > SWITCH_POINT: # piece가 기준점보다 많다면 MCTS
             # MCTS
-            tree = MCTS()
             board = Board(self.board, PLAYER, None, self.available_places, self.available_pieces)
             node = Node(board)
             
             # 상대가 이길 수 있는 piece은 선택에서 제외
-            tree.children[node] = []
+            MCTS_TREE.children[node] = []
             for piece in self.available_pieces:
                 is_opponent_win = False
                 for row, col in self.available_places:
@@ -53,25 +52,25 @@ class P1():
                     next_board = copy.deepcopy(board)
                     next_board.select(piece)
                     next_node = Node(next_board)
-                    tree.children[node].append(next_node)
+                    MCTS_TREE.children[node].append(next_node)
 
             # 상대가 모두 이기는 경우 -> 랜덤 선택
-            if not tree.children[node]: # lose
+            if not MCTS_TREE.children[node]: # lose
                 return random.choice(self.available_pieces)
             
             # 상대가 한 개를 제외하고 모두 이기는 경우 -> 남은 1가지 무조건 선택
-            if len(tree.children[node]) == 1: #only one piece
-                return tree.children[node][0].board_state.selected_piece
+            if len(MCTS_TREE.children[node]) == 1: #only one piece
+                return MCTS_TREE.children[node][0].board_state.selected_piece
 
             # 첫 확장 simulate & backpropagate
-            reward = tree._simulate(node)
-            tree._backpropagate([node], reward)
+            reward = MCTS_TREE._simulate(node)
+            MCTS_TREE._backpropagate([node], reward)
 
             # MCTS search
             for i in range(MCTS_ITERATIONS):
-                tree.do_rollout(node)
+                MCTS_TREE.do_rollout(node)
 
-            best_node = tree.choose(node)
+            best_node = MCTS_TREE.choose(node)
             return best_node.board_state.selected_piece
 
         else: # Minimax
@@ -89,7 +88,6 @@ class P1():
     def place_piece(self, selected_piece):
 
         if len(self.available_pieces) > SWITCH_POINT: # piece가 기준점보다 많다면 MCTS
-            tree = MCTS()
             board = Board(self.board, PLAYER, selected_piece, self.available_places, self.available_pieces)
             node = Node(board)
 
@@ -100,9 +98,9 @@ class P1():
             
             # MCTS search
             for i in range(MCTS_ITERATIONS):
-                tree.do_rollout(node)
+                MCTS_TREE.do_rollout(node)
 
-            best_node = tree.choose(node)
+            best_node = MCTS_TREE.choose(node)
             
             # 가장 좋은 row, col값 return
             for row in range(BOARD_ROWS):
@@ -401,20 +399,13 @@ class Board:
 
     def __str__(self):
         # Convert the board into a readable string
-        if self.current_state == "place_piece":
-            return f"\nPlayer: {self.player}, Selected_piece: {self.selected_piece}\n"
-        else:
-            board_str = ''
-            for row in range(BOARD_ROWS):
-                for col in range(BOARD_COLS):
-                    piece = self.get(row, col)
-                    if piece is None:
-                        piece_text = '....'
-                    else:
-                        piece_text = f"{'I' if piece[0] == 0 else 'E'}{'N' if piece[1] == 0 else 'S'}{'T' if piece[2] == 0 else 'F'}{'P' if piece[3] == 0 else 'J'}"
-                    board_str += f"{piece_text} "
-                board_str += '\n'
-            return f"\nPlayer: {self.player}, Current_state: {self.current_state}, Selected_piece: {self.selected_piece}\n{board_str}\n"
+        board_str = ''
+        for row in range(BOARD_ROWS):
+            for col in range(BOARD_COLS):
+                piece = get(self.get_board(), row, col)
+                board_str += f"{get_piece_text(piece)} "
+            board_str += '\n'
+        return f"\nPlayer: {self.player}, Selected_piece: {get_piece_text(self.selected_piece)}\n{board_str}\n"
         
     def __getitem__(self, index):
         return self.__board[index]
@@ -461,6 +452,13 @@ def check_win_with_piece(board, piece, x, y):
     flag = check_win(board, x, y)
     board[x][y] = 0
     return flag
+
+def get_piece_text(piece):
+    if piece is None:
+        return "...."
+    else:
+        return f"{'I' if piece[0] == 0 else 'E'}{'N' if piece[1] == 0 else 'S'}{'T' if piece[2] == 0 else 'F'}{'P' if piece[3] == 0 else 'J'}"
+
     
 def check_win(board, x, y):
     def check_equal_attributes(pieces):
@@ -534,3 +532,13 @@ def check_win(board, x, y):
                 return True
 
     return False
+
+# =========================================
+# Dynamic Programming
+# =========================================
+MCTS_TREE = MCTS()
+MINIMAX_NODE_TABLE = dict()
+
+def reset_MCTS_TREE():
+    global MCTS_TREE
+    MCTS_TREE = MCTS()
