@@ -3,16 +3,16 @@ import numpy as np
 import os
 from datetime import datetime
 
-import machines_p11
+import machines_p1
 import machines_p2
 import time
 
 ITERATION = 10
 FIRST_TURN = 1
-P1 = machines_p11.P1
+P1 = machines_p1.P1
 P2 = machines_p2.P2
-P1_MCTS_ITERATIONS = machines_p11.MCTS_ITERATIONS
-P1_SWITCH_POINT = machines_p11.SWITCH_POINT
+P1_MCTS_ITERATIONS = machines_p1.MCTS_ITERATIONS
+P1_SWITCH_POINT = machines_p1.SWITCH_POINT
 P2_MCTS_ITERATIONS = machines_p2.MCTS_ITERATIONS
 P2_SWITCH_POINT = machines_p2.SWITCH_POINT
 

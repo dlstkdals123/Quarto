@@ -2,7 +2,7 @@ import sys
 import pygame
 import numpy as np
 
-from machines_p11 import P1
+from machines_p1 import P1
 from machines_p2 import P2
 import time
 
