@@ -107,7 +107,7 @@ class P1():
             # 가장 좋은 row, col값 return
             for row in range(BOARD_ROWS):
                 for col in range(BOARD_COLS):
-                    if best_node.board_state[row][col] == self.pieces.index(selected_piece) + 1:  # 실제 값으로 비교
+                    if best_node.board_state[row][col] == get_piece_idx(selected_piece):  # 실제 값으로 비교
                         return row, col
         else: # Minimax
             best_move = None
@@ -115,7 +115,7 @@ class P1():
 
             for row, col in product(range(4), range(4)):
                 if self.board[row][col] == 0:
-                    self.board[row][col] = self.pieces.index(selected_piece) + 1
+                    self.board[row][col] = get_piece_idx(selected_piece)
                     eval = self.minmax_alpha_beta(self.board, self.available_pieces, -float('inf'), float('inf'), True, None, (row, col))
                     self.board[row][col] = 0
 

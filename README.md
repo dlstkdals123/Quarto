@@ -9,8 +9,9 @@
 생각나는 이슈가 있다면 적어주시고, 카톡으로 남겨주시면 의견 나눠봅시다.
 
 - MCTS 중 Simulation 설정(현재는 완전 랜덤)
-- Iteration 배열
-- (최적화: 보드 대칭 및 회전)
+- Iteration 배열 (필요 시)
+- Minimax + DP
+- 보드 대칭 및 회전 구현
 - (유전 알고리즘 적용 및 결과 분석): -ing
 
 ### Closed Issue
