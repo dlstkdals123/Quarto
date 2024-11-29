@@ -7,7 +7,7 @@ import machines_p11
 import machines_p2
 import time
 
-ITERATION = 100
+ITERATION = 10
 FIRST_TURN = 1
 P1 = machines_p11.P1
 P2 = machines_p2.P2
@@ -97,8 +97,6 @@ def restart_game():
         machines_p2.isFirst = True
     else:
         machines_p2.isFirst = False
-
-
 
 def second2hhmmss(seconds):
     if seconds >= 3600:
@@ -264,11 +262,11 @@ with open(LOG_FILENAME, "w") as log_file:
             f"Player: {player}\n"
             f"    Wins: {wins}\n"
             f"    Draws: {draws}\n"
-            f"    Losses: {loses} (Timeouts: {timeouts})\n"
+            f"    Losses: {loses}\n"
+            f"    Timeouts: {timeouts}\n"
             f"    Average Time Per Game: {avg_time:.2f} seconds\n"
             f"    Switches to Minimax: {switches}\n"
-            f"    Total Minimax Time: {minimax_time:.2f} seconds\n"
-            f"    Average Minimax Time Per Switch: {avg_minimax_time:.2f} seconds\n"
+            f"    Average Minimax Time After Switch: {avg_minimax_time:.2f} seconds\n"
             f"    Stats when Minimax was used:\n"
             f"        Wins: {switch_wins}\n"
             f"        Draws: {switch_draws}\n"
