@@ -98,8 +98,6 @@ def restart_game():
     else:
         machines_p2.isFirst = False
 
-    machines_p11.reset_MCTS_TREE()
-
 def second2hhmmss(seconds):
     if seconds >= 3600:
         hh = seconds//3600
@@ -264,10 +262,11 @@ with open(LOG_FILENAME, "w") as log_file:
             f"Player: {player}\n"
             f"    Wins: {wins}\n"
             f"    Draws: {draws}\n"
-            f"    Losses: {loses} (Timeouts: {timeouts})\n"
+            f"    Losses: {loses}\n"
+            f"    Timeouts: {timeouts}\n"
             f"    Average Time Per Game: {avg_time:.2f} seconds\n"
             f"    Switches to Minimax: {switches}\n"
-            f"    Average Minimax Time Per Switch: {avg_minimax_time:.2f} seconds\n"
+            f"    Average Minimax Time After Switch: {avg_minimax_time:.2f} seconds\n"
             f"    Stats when Minimax was used:\n"
             f"        Wins: {switch_wins}\n"
             f"        Draws: {switch_draws}\n"

@@ -6,8 +6,8 @@ import math
 import copy
 
 # Algorithms parameters
-MCTS_ITERATIONS = 50
-SWITCH_POINT = 8
+MCTS_ITERATIONS = 500
+SWITCH_POINT = 0
 
 # Constants
 BOARD_ROWS = 4
@@ -28,99 +28,115 @@ class P1():
     def select_piece(self):
         global isFirst
 
-        #첫 선택은 무작위
         if isFirst:
             isFirst = False
             return random.choice(self.pieces)
+
+        if len(self.available_pieces) > SWITCH_POINT:
+            return self._select_piece_mcts()
+        else:
+            return self._select_piece_minimax()
+
+    def _select_piece_mcts(self):
+        tree = MCTS()
+        board = Board(self.board, PLAYER, None, self.available_places, self.available_pieces)
+        node = Node(board)
         
+        # 상대가 이길 수 있는 piece 제외
+        tree.children[node] = []
+        for piece in self.available_pieces:
+            if not self._is_opponent_winning_piece(board, piece):
+                next_board = copy.deepcopy(board)
+                next_board.select(piece)
+                next_node = Node(next_board)
+                tree.children[node].append(next_node)
+
+        if not tree.children[node]:
+            return random.choice(self.available_pieces)
         
-        if len(self.available_pieces) > SWITCH_POINT: # piece가 기준점보다 많다면 MCTS
-            # MCTS
-            board = Board(self.board, PLAYER, None, self.available_places, self.available_pieces)
-            node = Node(board)
-            
-            # 상대가 이길 수 있는 piece은 선택에서 제외
-            MCTS_TREE.children[node] = []
-            for piece in self.available_pieces:
-                is_opponent_win = False
-                for row, col in self.available_places:
-                    if check_win_with_piece(board, piece, row, col):
-                        is_opponent_win = True
-                        break
-                
-                if not is_opponent_win:
-                    next_board = copy.deepcopy(board)
-                    next_board.select(piece)
-                    next_node = Node(next_board)
-                    MCTS_TREE.children[node].append(next_node)
+        if len(tree.children[node]) == 1:
+            return tree.children[node][0].board_state.selected_piece
 
-            # 상대가 모두 이기는 경우 -> 랜덤 선택
-            if not MCTS_TREE.children[node]: # lose
-                return random.choice(self.available_pieces)
-            
-            # 상대가 한 개를 제외하고 모두 이기는 경우 -> 남은 1가지 무조건 선택
-            if len(MCTS_TREE.children[node]) == 1: #only one piece
-                return MCTS_TREE.children[node][0].board_state.selected_piece
+        # MCTS 실행
+        reward = tree._simulate(node)
+        tree._backpropagate([node], reward)
 
-            # 첫 확장 simulate & backpropagate
-            reward = MCTS_TREE._simulate(node)
-            MCTS_TREE._backpropagate([node], reward)
+        for _ in range(MCTS_ITERATIONS):
+            tree.do_rollout(node)
 
-            # MCTS search
-            for i in range(MCTS_ITERATIONS):
-                MCTS_TREE.do_rollout(node)
+        best_node = tree.choose(node)
+        return best_node.board_state.selected_piece
 
-            best_node = MCTS_TREE.choose(node)
-            return best_node.board_state.selected_piece
+    def _select_piece_minimax(self):
+        best_piece = None
+        best_value = -float('inf')
 
-        else: # Minimax
-            best_piece = None
-            best_value = -float('inf')
+        for piece in self.available_pieces:
+            eval = self.minmax_alpha_beta(
+                self.board, 
+                [p for p in self.available_pieces if p != piece],
+                -float('inf'), float('inf'),
+                False, piece, None
+            )
+            if eval > best_value:
+                best_value = eval
+                best_piece = piece
 
-            for piece in self.available_pieces:
-                eval = self.minmax_alpha_beta(self.board, [p for p in self.available_pieces if p != piece], -float('inf'), float('inf'), False, piece, None)
-                if eval > best_value:
-                    best_value = eval
-                    best_piece = piece
+        return best_piece
 
-            return best_piece
+    def _is_opponent_winning_piece(self, board, piece):
+        for row, col in self.available_places:
+            if check_win_with_piece(board, piece, row, col):
+                return True
+        return False
 
     def place_piece(self, selected_piece):
+        if len(self.available_pieces) > SWITCH_POINT:
+            return self._place_piece_mcts(selected_piece)
+        else:
+            return self._place_piece_minimax(selected_piece)
 
-        if len(self.available_pieces) > SWITCH_POINT: # piece가 기준점보다 많다면 MCTS
-            board = Board(self.board, PLAYER, selected_piece, self.available_places, self.available_pieces)
-            node = Node(board)
+    def _place_piece_mcts(self, selected_piece):
+        tree = MCTS()
+        board = Board(self.board, PLAYER, selected_piece, self.available_places, self.available_pieces)
+        node = Node(board)
 
-            # 바로 이길 수 있다면 -> 그것을 선택
-            for row, col in self.available_places:
-                if check_win_with_piece(board, selected_piece, row, col):
+        # 즉시 승리 가능한 위치 확인
+        for row, col in self.available_places:
+            if check_win_with_piece(board, selected_piece, row, col):
+                return row, col
+        
+        # MCTS 실행
+        for _ in range(MCTS_ITERATIONS):
+            tree.do_rollout(node)
+
+        best_node = tree.choose(node)
+        
+        # 최적의 위치 반환
+        for row in range(BOARD_ROWS):
+            for col in range(BOARD_COLS):
+                if best_node.board_state[row][col] == get_piece_idx(selected_piece):
                     return row, col
-            
-            # MCTS search
-            for i in range(MCTS_ITERATIONS):
-                MCTS_TREE.do_rollout(node)
 
-            best_node = MCTS_TREE.choose(node)
-            
-            # 가장 좋은 row, col값 return
-            for row in range(BOARD_ROWS):
-                for col in range(BOARD_COLS):
-                    if best_node.board_state[row][col] == get_piece_idx(selected_piece):  # 실제 값으로 비교
-                        return row, col
-        else: # Minimax
-            best_move = None
-            best_value = -float('inf')
+    def _place_piece_minimax(self, selected_piece):
+        best_move = None
+        best_value = -float('inf')
 
-            for row, col in product(range(4), range(4)):
-                if self.board[row][col] == 0:
-                    self.board[row][col] = get_piece_idx(selected_piece)
-                    eval = self.minmax_alpha_beta(self.board, self.available_pieces, -float('inf'), float('inf'), True, None, (row, col))
-                    self.board[row][col] = 0
+        for row, col in product(range(4), range(4)):
+            if self.board[row][col] == 0:
+                self.board[row][col] = get_piece_idx(selected_piece)
+                eval = self.minmax_alpha_beta(
+                    self.board,
+                    self.available_pieces,
+                    -float('inf'), float('inf'),
+                    True, None, (row, col)
+                )
+                self.board[row][col] = 0
 
-                    if eval > best_value:
-                        best_value = eval
-                        best_move = (row, col)
-            return best_move
+                if eval > best_value:
+                    best_value = eval
+                    best_move = (row, col)
+        return best_move
     
     def get_available_places(self):
         available_places = []
@@ -130,63 +146,54 @@ class P1():
                     available_places.append((row, col))
         return available_places
         
-    def minmax_alpha_beta(self, board, available_pieces, alpha, beta, is_maximizing, selected_piece, log = None): # log는 place_piece을 하였다면 (row, col) select_piece라면 None
-        if selected_piece is None: # 전의 player가 place_piece한 경우 -> player가 변하지 않음 = is_maximizing도 변하지 않음
+    def minmax_alpha_beta(self, board, available_pieces, alpha, beta, is_maximizing, selected_piece, log=None):
+        # 승리 체크
+        if selected_piece is None and log:
             row, col = log
             if check_win(board, row, col):
-                if is_maximizing:
-                    return 10
-                else:
-                    return -10
+                return 10 if is_maximizing else -10
 
-        if len(available_pieces) == 0:
+        # 게임 종료 체크 
+        if not available_pieces:
             return 0
 
-        if is_maximizing:
-            max_eval = -float('inf')
-            if selected_piece is None: # select_piece
-                for piece in available_pieces:
-                    eval = self.minmax_alpha_beta(board, [p for p in available_pieces if p != piece], alpha, beta, not is_maximizing, piece)
-                    max_eval = max(max_eval, eval)
+        # 초기화
+        best_eval = float('-inf') if is_maximizing else float('inf')
+        update_func = max if is_maximizing else min
+
+        if selected_piece is None:
+            # 말 선택 단계
+            for piece in available_pieces:
+                remaining_pieces = [p for p in available_pieces if p != piece]
+                eval = self.minmax_alpha_beta(board, remaining_pieces, alpha, beta, not is_maximizing, piece)
+                best_eval = update_func(best_eval, eval)
+                
+                if is_maximizing:
                     alpha = max(alpha, eval)
-                    if beta <= alpha:
-                        break
-
-            else: # place_piece
-                for row, col in product(range(4), range(4)):
-                    if board[row][col] == 0:
-                        board[row][col] = self.pieces.index(selected_piece) + 1
-                        eval = self.minmax_alpha_beta(board, available_pieces, alpha, beta, is_maximizing, None, (row, col))
-                        board[row][col] = 0
-                        max_eval = max(max_eval, eval)
-                        alpha = max(alpha, eval)
-                        if beta <= alpha:
-                            break
-
-            return max_eval
-        
-        else:
-            min_eval = float('inf')
-            if selected_piece is None: # select_piece
-                for piece in available_pieces:
-                    eval = self.minmax_alpha_beta(board, [p for p in available_pieces if p != piece], alpha, beta, not is_maximizing, piece)
-                    min_eval = min(min_eval, eval)
+                else:
                     beta = min(beta, eval)
+                    
+                if beta <= alpha:
+                    break
+                    
+        else:
+            # 말 배치 단계
+            for row, col in product(range(4), range(4)):
+                if board[row][col] == 0:
+                    board[row][col] = get_piece_idx(selected_piece)
+                    eval = self.minmax_alpha_beta(board, available_pieces, alpha, beta, is_maximizing, None, (row, col))
+                    board[row][col] = 0
+                    best_eval = update_func(best_eval, eval)
+                    
+                    if is_maximizing:
+                        alpha = max(alpha, eval)
+                    else:
+                        beta = min(beta, eval)
+                        
                     if beta <= alpha:
                         break
-            
-            else: #place_piece
-                for row, col in product(range(4), range(4)):
-                    if board[row][col] == 0:
-                        board[row][col] = self.pieces.index(selected_piece) + 1
-                        eval = self.minmax_alpha_beta(board, available_pieces, alpha, beta, is_maximizing, None, (row, col))
-                        board[row][col] = 0
-                        min_eval = min(min_eval, eval)
-                        beta = min(beta, eval)
-                        if beta <= alpha:
-                            break
 
-            return min_eval
+        return best_eval
 
 class MCTS:
     "Monte Carlo tree searcher. First rollout the tree then choose a move."
@@ -388,7 +395,6 @@ class Board:
         if self.selected_piece is None:
             raise TypeError("Now is 'select_piece' state")
 
-        self.player = self.player
         self.__board[row][col] = get_piece_idx(self.selected_piece)
         self.available_places.remove((row, col))
         self.selected_piece = None
@@ -462,83 +468,43 @@ def get_piece_text(piece):
     
 def check_win(board, x, y):
     def check_equal_attributes(pieces):
-        if len(pieces) < 4:
-            return False
-        for i in range(4):
-            if all(piece[i] == pieces[0][i] for piece in pieces):
-                return True
-        
-        return False
+        return any(all(piece[i] == pieces[0][i] for piece in pieces) for i in range(4))
 
-    # Check row
-    pieces = []
-    for j in range(BOARD_COLS):
-        piece = get(board, x, j)
-        if not piece:
-            break
-        else:
-            pieces.append(piece)
-    
-    if check_equal_attributes(pieces):
-        return True
-    
-    # Check column
-    pieces = []
-    for i in range(BOARD_ROWS):
-        piece = get(board, i, y)
-        if not piece:
-            break
-        else:
-            pieces.append(piece)
-    
-    if check_equal_attributes(pieces):
+    def check_line(pieces):
+        return None not in pieces and check_equal_attributes(pieces)
+
+    def get_2x2_pieces(i, j):
+        return [
+            get(board, i, j), get(board, i, j + 1),
+            get(board, i + 1, j), get(board, i + 1, j + 1)
+        ]
+
+    # 가로줄 확인
+    row_pieces = [get(board, x, j) for j in range(BOARD_COLS)]
+    if check_line(row_pieces):
         return True
 
-    # Check main diagonal (top-left to bottom-right)
-    if x == y:  # Only check if the piece is on the diagonal
-        pieces = []
-        for i in range(BOARD_ROWS):
-            piece = get(board, i, i)
-            if not piece:
-                break
-            else:
-                pieces.append(piece)
-        
-        if check_equal_attributes(pieces):
+    # 세로줄 확인
+    col_pieces = [get(board, i, y) for i in range(BOARD_ROWS)]
+    if check_line(col_pieces):
+        return True
+
+    # 주대각선 확인 (좌상단 -> 우하단)
+    if x == y:
+        diag_pieces = [get(board, i, i) for i in range(BOARD_ROWS)]
+        if check_line(diag_pieces):
             return True
 
-    # Check anti-diagonal (top-right to bottom-left)
-    if x + y == BOARD_ROWS - 1:  # Only check if the piece is on the diagonal
-        pieces = []
-        for i in range(BOARD_ROWS):
-            piece = get(board, i, BOARD_ROWS - 1 - i)
-            if not piece:
-                break
-            else:
-                pieces.append(piece)
-        
-        if check_equal_attributes(pieces):
+    # 부대각선 확인 (우상단 -> 좌하단)
+    if x + y == BOARD_ROWS - 1:
+        anti_diag_pieces = [get(board, i, BOARD_ROWS - 1 - i) for i in range(BOARD_ROWS)]
+        if check_line(anti_diag_pieces):
             return True
 
-    # Check 2x2 groups
+    # 2x2 영역 확인
     for i in range(max(0, x - 1), min(BOARD_ROWS - 2, x) + 1):
         for j in range(max(0, y - 1), min(BOARD_COLS - 2, y) + 1):
-            pieces = [
-                get(board, i, j), get(board, i, j + 1),
-                get(board, i + 1, j), get(board, i + 1, j + 1)
-            ]
-
-            if None not in pieces and check_equal_attributes(pieces):
+            if check_line(get_2x2_pieces(i, j)):
                 return True
 
     return False
-
-# =========================================
-# Dynamic Programming
-# =========================================
-MCTS_TREE = MCTS()
-MINIMAX_NODE_TABLE = dict()
-
-def reset_MCTS_TREE():
-    global MCTS_TREE
-    MCTS_TREE = MCTS()
