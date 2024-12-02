@@ -7,7 +7,7 @@ import machines_p1
 import machines_p2
 import time
 
-ITERATION = 1
+ITERATION = 100
 FIRST_TURN = 1
 P1 = machines_p1.P1
 P2 = machines_p2.P2
@@ -92,6 +92,9 @@ def restart_game():
     selected_piece = None  # Reset selected piece
     turn = FIRST_TURN
     FIRST_TURN = 3 - FIRST_TURN
+
+    machines_p1.restart_game()
+    machines_p2.restart_game()
 
     if turn == 1:
         machines_p1.isFirst = False

@@ -6,8 +6,8 @@ import math
 import copy
 
 # Algorithms parameters
-MCTS_ITERATIONS = 500
-SWITCH_POINT = 0
+MCTS_ITERATIONS = 50
+SWITCH_POINT = 8
 
 # Constants
 BOARD_ROWS = 4
@@ -17,6 +17,13 @@ pieces = [(i, j, k, l) for i in range(2) for j in range(2) for k in range(2) for
 # Variables
 PLAYER = 1
 isFirst = False # P2인 경우 True로 바꿔주세요.
+
+# DP table for minimax
+DP_table = {}
+
+def restart_game():
+    global DP_table
+    DP_table = {}
 
 class P1():
     def __init__(self, board, available_pieces):
@@ -147,6 +154,11 @@ class P1():
         return available_places
         
     def minmax_alpha_beta(self, board, available_pieces, alpha, beta, is_maximizing, selected_piece, log=None):
+        # Check DP table
+        state_key = hash(np.array(board).tobytes()) ^ hash(selected_piece)
+        if state_key in DP_table:
+            return DP_table[state_key]
+
         # 승리 체크
         if selected_piece is None and log:
             row, col = log
@@ -193,6 +205,8 @@ class P1():
                     if beta <= alpha:
                         break
 
+        # Save to DP table
+        DP_table[state_key] = best_eval
         return best_eval
 
 class MCTS:
