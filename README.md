@@ -11,9 +11,7 @@
 - MCTS 중 Simulation 설정(현재는 완전 랜덤)
 - MCTS reward에서 depth가 필요한지 테스트
 - Iteration 배열 (필요 시)
-- Minimax + DP
 - 보드 대칭 및 회전 구현
-- (유전 알고리즘 적용 및 결과 분석): -ing
 
 ### Closed Issue
 - ~~MCTS + DP 실패: 너무 느림. log_1129_230310.txt 참고~~
