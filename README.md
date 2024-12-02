@@ -8,12 +8,12 @@
 ### Issue
 생각나는 이슈가 있다면 적어주시고, 카톡으로 남겨주시면 의견 나눠봅시다.
 
-- MCTS 중 Simulation 설정(현재는 완전 랜덤)
-- MCTS reward에서 depth가 필요한지 테스트
 - Iteration 배열 (필요 시)
 - 보드 대칭 및 회전 구현
 
 ### Closed Issue
+- ~~MCTS reward에서 depth가 필요한지 테스트~~
+- ~~MCTS 중 Simulation 설정(현재는 완전 랜덤)~~
 - ~~MCTS + DP 실패: 너무 느림. log_1129_230310.txt 참고~~
 - ~~MCTS 구현~~
 - ~~MCTS에서 당장 이길 수 있다면, 그것을 선택~~

@@ -7,7 +7,7 @@ import machines_p1
 import machines_p2
 import time
 
-ITERATION = 30
+ITERATION = 7
 FIRST_TURN = 1
 P1 = machines_p1.P1
 P2 = machines_p2.P2
