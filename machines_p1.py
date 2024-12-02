@@ -85,9 +85,12 @@ class P1():
                 -float('inf'), float('inf'),
                 False, piece, None
             )
+            # print(f"{get_piece_text(piece)}: {eval}")
             if eval > best_value:
                 best_value = eval
                 best_piece = piece
+                if best_value == 10:
+                    break
 
         return best_piece
 
@@ -140,9 +143,12 @@ class P1():
                 )
                 self.board[row][col] = 0
 
+                # print(f"({row}, {col}): {eval}")
                 if eval > best_value:
                     best_value = eval
                     best_move = (row, col)
+                    if best_value == 10:
+                        break
         return best_move
     
     def get_available_places(self):
@@ -182,8 +188,12 @@ class P1():
                 
                 if is_maximizing:
                     alpha = max(alpha, eval)
+                    if alpha == 10:
+                        break
                 else:
                     beta = min(beta, eval)
+                    if beta == -10:
+                        break
                     
                 if beta <= alpha:
                     break
@@ -199,8 +209,12 @@ class P1():
                     
                     if is_maximizing:
                         alpha = max(alpha, eval)
+                        if alpha == 10:
+                            break
                     else:
                         beta = min(beta, eval)
+                        if beta == -10:
+                            break
                         
                     if beta <= alpha:
                         break
@@ -342,12 +356,30 @@ class Node():
 
         while not is_board_full(copy_board.available_places):
             if copy_board.selected_piece is None: # Select_piece
-                copy_board.random_select()
+                random_piece = []
+
+                for piece in copy_board.available_pieces:
+                    is_opponent_win = False
+                    for row, col in copy_board.available_places:
+                        if check_win_with_piece(copy_board.get_board(), piece, row, col):
+                            is_opponent_win = True
+                            break
+
+                    if not is_opponent_win:
+                        random_piece.append(piece)
+
+                if random_piece:
+                    copy_board.select(random.choice(random_piece))
+                else:
+                    copy_board.random_select()
+
             else: # Place_piece
+                for row, col in copy_board.available_places:
+                    if check_win_with_piece(copy_board.get_board(), copy_board.selected_piece, row, col):
+                        return (copy_board.player == PLAYER) / depth
+
                 row, col = copy_board.get_random_place()
                 copy_board.place(row, col)
-                if check_win(copy_board.get_board(), row, col):
-                    return (copy_board.player == PLAYER) / depth
 
         return 0.5
 
@@ -479,7 +511,16 @@ def get_piece_text(piece):
     else:
         return f"{'I' if piece[0] == 0 else 'E'}{'N' if piece[1] == 0 else 'S'}{'T' if piece[2] == 0 else 'F'}{'P' if piece[3] == 0 else 'J'}"
 
-    
+def print_piece(piece):
+    print(get_piece_text(piece))
+
+def print_board(board):
+    for row in range(BOARD_ROWS):
+        for col in range(BOARD_COLS):
+            print(get_piece_text(get(board, row, col)), end=" ")
+        print()
+    print("--------------------------------")
+
 def check_win(board, x, y):
     def check_equal_attributes(pieces):
         return any(all(piece[i] == pieces[0][i] for piece in pieces) for i in range(4))
