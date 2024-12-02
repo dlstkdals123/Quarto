@@ -7,7 +7,7 @@ import machines_p1
 import machines_p2
 import time
 
-ITERATION = 10
+ITERATION = 1
 FIRST_TURN = 1
 P1 = machines_p1.P1
 P2 = machines_p2.P2
@@ -94,9 +94,12 @@ def restart_game():
     FIRST_TURN = 3 - FIRST_TURN
 
     if turn == 1:
+        machines_p1.isFirst = False
         machines_p2.isFirst = True
     else:
+        machines_p1.isFirst = True
         machines_p2.isFirst = False
+    
 
 def second2hhmmss(seconds):
     if seconds >= 3600:
