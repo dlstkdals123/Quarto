@@ -6,8 +6,8 @@ import math
 import copy
 
 # Algorithms parameters
-MCTS_ITERATIONS = 50
-SWITCH_POINT = 8
+MCTS_ITERATIONS = 500
+SWITCH_POINT = 9
 
 # Constants
 BOARD_ROWS = 4
@@ -277,19 +277,17 @@ class MCTS:
         node_list = node.find_children()
         self.children[node] = []
         for currnet_node in node_list:
-            if currnet_node not in self.children.keys():
+            if currnet_node not in self.children:
                 self.children[node].append(currnet_node)
             else:
                 deleted_nodes += 1
 
     def _simulate(self, node):
         "Returns the reward for a random simulation (to completion) of `node`"
-        depth = 1
         while True:
             if node.is_terminal():
-                return node.reward(depth)
+                return node.reward()
             node = node.find_random_child()
-            depth += 1
 
     def _backpropagate(self, path, reward):
         "Send the reward back up to the ancestors of the leaf"
@@ -350,36 +348,19 @@ class Node():
     def is_terminal(self):
         return not self.children
 
-    def reward(self, depth):
+    def reward(self):
         copy_board = copy.deepcopy(self.board_state)
         "Assumes self is terminal node. 1=win, 0=loss, .5=draw"
 
         while not is_board_full(copy_board.available_places):
             if copy_board.selected_piece is None: # Select_piece
-                random_piece = []
-
-                for piece in copy_board.available_pieces:
-                    is_opponent_win = False
-                    for row, col in copy_board.available_places:
-                        if check_win_with_piece(copy_board.get_board(), piece, row, col):
-                            is_opponent_win = True
-                            break
-
-                    if not is_opponent_win:
-                        random_piece.append(piece)
-
-                if random_piece:
-                    copy_board.select(random.choice(random_piece))
-                else:
-                    copy_board.random_select()
+                copy_board.random_select()
 
             else: # Place_piece
-                for row, col in copy_board.available_places:
-                    if check_win_with_piece(copy_board.get_board(), copy_board.selected_piece, row, col):
-                        return (copy_board.player == PLAYER) / depth
-
                 row, col = copy_board.get_random_place()
                 copy_board.place(row, col)
+                if check_win(copy_board.get_board(), row, col):
+                    return copy_board.player == PLAYER
 
         return 0.5
 
