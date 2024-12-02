@@ -261,7 +261,7 @@ with open(LOG_FILENAME, "w") as log_file:
 
         # Calculate derived statistics
         avg_time = total_time / ITERATION if ITERATION > 0 else 0
-        avg_minimax_time = minimax_time / switches if switches > 0 else 0  # Minimax 시간 계산
+        avg_minimax_time = minimax_time / switches if switches > 0 else 0  # Minimax 평균 시간 계산
 
         # Append detailed stats for the player
         summary_lines.append(
