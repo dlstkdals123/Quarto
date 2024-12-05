@@ -7,14 +7,20 @@ import machines_p1
 import machines_p2
 import time
 
-ITERATION = 7
+ITERATION = int(sys.argv[5])
 FIRST_TURN = 1
 P1 = machines_p1.P1
 P2 = machines_p2.P2
-P1_MCTS_ITERATIONS = machines_p1.MCTS_ITERATIONS
-P1_SWITCH_POINT = machines_p1.SWITCH_POINT
-P2_MCTS_ITERATIONS = machines_p2.MCTS_ITERATIONS
-P2_SWITCH_POINT = machines_p2.SWITCH_POINT
+
+P1_MCTS_ITERATIONS = int(sys.argv[1])
+P1_SWITCH_POINT = int(sys.argv[2])
+P2_MCTS_ITERATIONS = int(sys.argv[3])
+P2_SWITCH_POINT = int(sys.argv[4])
+
+
+# machines_p1 및 machines_p2 구성
+machines_p1.configure(P1_MCTS_ITERATIONS, P1_SWITCH_POINT)
+machines_p2.configure(P2_MCTS_ITERATIONS, P2_SWITCH_POINT)
 
 players = {
     1: P1,
