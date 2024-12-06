@@ -4,6 +4,7 @@ from collections import defaultdict
 from itertools import product
 import math
 import copy
+import time
 
 # Algorithms parameters
 MCTS_ITERATIONS = 500
@@ -33,6 +34,7 @@ class P2():
         self.available_places = self.get_available_places()
     
     def select_piece(self):
+        random.seed(time.time())
         global isFirst
 
         if isFirst:
@@ -101,6 +103,8 @@ class P2():
         return False
 
     def place_piece(self, selected_piece):
+        random.seed(time.time())
+
         if len(self.available_pieces) > SWITCH_POINT:
             return self._place_piece_mcts(selected_piece)
         else:
