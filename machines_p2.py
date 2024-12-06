@@ -7,8 +7,15 @@ import copy
 import time
 
 # Algorithms parameters
-MCTS_ITERATIONS = 500
-SWITCH_POINT = 9
+MCTS_ITERATIONS = 0
+SWITCH_POINT = 0
+
+
+def configure(mcts_iterations, swtich_point):
+    global MCTS_ITERATIONS, SWITCH_POINT
+    MCTS_ITERATIONS = mcts_iterations
+    SWITCH_POINT = swtich_point
+
 
 # Constants
 BOARD_ROWS = 4
