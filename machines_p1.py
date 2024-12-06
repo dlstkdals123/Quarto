@@ -4,6 +4,7 @@ from collections import defaultdict
 from itertools import product
 import math
 import copy
+import time
 
 # Algorithms parameters
 MCTS_ITERATIONS = 1500
@@ -33,6 +34,7 @@ class P1():
         self.available_places = self.get_available_places()
     
     def select_piece(self):
+        random.seed(time.time())
         global isFirst
 
         if isFirst:
@@ -107,6 +109,8 @@ class P1():
             return self._place_piece_minimax(selected_piece)
 
     def _place_piece_mcts(self, selected_piece):
+        random.seed(time.time())
+
         tree = MCTS()
         board = Board(self.board, PLAYER, selected_piece, self.available_places, self.available_pieces)
         node = Node(board)
