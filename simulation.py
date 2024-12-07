@@ -137,7 +137,10 @@ results = {
 
 # 메인 게임 루프
 for iteration in range(1, ITERATION + 1):
-    print(f"iteration: {iteration} is running...")
+    # print(f"iteration: {iteration} is running...")
+    print(f"  [게임 시작] P1_MCTS_ITERATIONS: {P1_MCTS_ITERATIONS}, P1_SWITCH_POINT: {P1_SWITCH_POINT}, P2_MCTS_ITERATIONS: {
+          P2_MCTS_ITERATIONS}, P2_SWITCH_POINT: {P2_SWITCH_POINT}, Iteration: {iteration}", flush=True)
+
     restart_game()
     game_over = False
     flag = "select_piece"
@@ -235,6 +238,8 @@ for iteration in range(1, ITERATION + 1):
     if p2_switched:
         results["P2"]["switches"] += 1
 
+print(f"    [기록 시작] P1_MCTS_ITERATIONS: {P1_MCTS_ITERATIONS}, P1_SWITCH_POINT: {P1_SWITCH_POINT}, P2_MCTS_ITERATIONS: {
+          P2_MCTS_ITERATIONS}, P2_SWITCH_POINT: {P2_SWITCH_POINT}")
 LOG_DIR = "log"
 LOG_FILENAME = os.path.join(LOG_DIR, f"log_{datetime.now().strftime('%m%d_%H%M%S')}.txt")
 os.makedirs(LOG_DIR, exist_ok=True)
