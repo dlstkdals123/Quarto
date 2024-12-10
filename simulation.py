@@ -7,20 +7,28 @@ import machines_p1
 import machines_p2
 import time
 
-ITERATION = int(sys.argv[5])
 FIRST_TURN = 1
 P1 = machines_p1.P1
 P2 = machines_p2.P2
 
-P1_MCTS_ITERATIONS = int(sys.argv[1])
-P1_SWITCH_POINT = int(sys.argv[2])
-P2_MCTS_ITERATIONS = int(sys.argv[3])
-P2_SWITCH_POINT = int(sys.argv[4])
-
+# 자동화 시뮬레이션 시 사용 (auto_simulation_serial/parallel.py 사용 시)
+# P1_MCTS_ITERATIONS = int(sys.argv[1])
+# P1_SWITCH_POINT = int(sys.argv[2])
+# P2_MCTS_ITERATIONS = int(sys.argv[3])
+# P2_SWITCH_POINT = int(sys.argv[4])
+# ITERATION = int(sys.argv[5])
 
 # machines_p1 및 machines_p2 구성
-machines_p1.configure(P1_MCTS_ITERATIONS, P1_SWITCH_POINT)
-machines_p2.configure(P2_MCTS_ITERATIONS, P2_SWITCH_POINT)
+# machines_p1.configure(P1_MCTS_ITERATIONS, P1_SWITCH_POINT)
+# machines_p2.configure(P2_MCTS_ITERATIONS, P2_SWITCH_POINT)
+
+
+# 본 프로그램만을 통한 시뮬레이션 시
+ITERATION = 1
+P1_MCTS_ITERATIONS = machines_p1.MCTS_ITERATIONS
+P1_SWITCH_POINT = machines_p1.SWITCH_POINT
+P2_MCTS_ITERATIONS = machines_p2.MCTS_ITERATIONS
+P2_SWITCH_POINT = machines_p2.SWITCH_POINT
 
 players = {
     1: P1,
@@ -138,8 +146,7 @@ results = {
 # 메인 게임 루프
 for iteration in range(1, ITERATION + 1):
     # print(f"iteration: {iteration} is running...")
-    print(f"  [게임 시작] P1_MCTS_ITERATIONS: {P1_MCTS_ITERATIONS}, P1_SWITCH_POINT: {P1_SWITCH_POINT}, P2_MCTS_ITERATIONS: {
-          P2_MCTS_ITERATIONS}, P2_SWITCH_POINT: {P2_SWITCH_POINT}, Iteration: {iteration}", flush=True)
+    print(f"  [게임 시작] P1_MCTS_ITERATIONS: {P1_MCTS_ITERATIONS}, P1_SWITCH_POINT: {P1_SWITCH_POINT}, P2_MCTS_ITERATIONS: {P2_MCTS_ITERATIONS}, P2_SWITCH_POINT: {P2_SWITCH_POINT}, Iteration: {iteration}", flush=True)
 
     restart_game()
     game_over = False
@@ -238,8 +245,7 @@ for iteration in range(1, ITERATION + 1):
     if p2_switched:
         results["P2"]["switches"] += 1
 
-print(f"    [기록 시작] P1_MCTS_ITERATIONS: {P1_MCTS_ITERATIONS}, P1_SWITCH_POINT: {P1_SWITCH_POINT}, P2_MCTS_ITERATIONS: {
-          P2_MCTS_ITERATIONS}, P2_SWITCH_POINT: {P2_SWITCH_POINT}")
+print(f"    [기록 시작] P1_MCTS_ITERATIONS: {P1_MCTS_ITERATIONS}, P1_SWITCH_POINT: {P1_SWITCH_POINT}, P2_MCTS_ITERATIONS: {P2_MCTS_ITERATIONS}, P2_SWITCH_POINT: {P2_SWITCH_POINT}")
 LOG_DIR = "log"
 LOG_FILENAME = os.path.join(LOG_DIR, f"log_{datetime.now().strftime('%m%d_%H%M%S')}.txt")
 os.makedirs(LOG_DIR, exist_ok=True)
