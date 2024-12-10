@@ -1,0 +1,34 @@
+Detailed Summary of Results:
+Total Iterations: 10
+MCTS Iterations:
+    P1: 750 iterations per move (Monte Carlo Tree Search for Player 1)
+    P2: 950 iterations per move (Monte Carlo Tree Search for Player 2)
+    P1: Switch to Minimax after 8 iterations per move (Player 1)
+    P2: Switch to Minimax after 7 iterations per move (Player 2)
+--------------------------------------------------
+Player: P1
+    Wins: 9
+    Draws: 1
+    Losses: 0
+    Timeouts: 0
+    Average Time Per Game: 7.24 seconds
+    Switches to Minimax: 4
+    Average Minimax Time After Switch: 0.13 seconds
+    Stats when Minimax was used:
+        Wins: 3
+        Draws: 1
+        Losses: 0
+
+Player: P2
+    Wins: 0
+    Draws: 1
+    Losses: 9
+    Timeouts: 0
+    Average Time Per Game: 10.00 seconds
+    Switches to Minimax: 4
+    Average Minimax Time After Switch: 0.01 seconds
+    Stats when Minimax was used:
+        Wins: 0
+        Draws: 1
+        Losses: 3
+
