@@ -7,14 +7,14 @@ import copy
 import time
 
 # Algorithms parameters
-MCTS_ITERATIONS = 0
-SWITCH_POINT = 0
+MCTS_ITERATIONS = 2500
+SWITCH_POINT = 8
 
-
-def configure(mcts_iterations, swtich_point):
-    global MCTS_ITERATIONS, SWITCH_POINT
-    MCTS_ITERATIONS = mcts_iterations
-    SWITCH_POINT = swtich_point
+# 자동화 시뮬레이션 시 사용 (auto_simulation_serial/parallel.py 사용 시)
+# def configure(mcts_iterations, swtich_point):
+#     global MCTS_ITERATIONS, SWITCH_POINT
+#     MCTS_ITERATIONS = mcts_iterations
+#     SWITCH_POINT = swtich_point
 
 
 # Constants
